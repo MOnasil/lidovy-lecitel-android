@@ -1,0 +1,56 @@
+name: APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Build web app
+        run: |
+          npm ci
+          npm run build
+          npx cap sync android
+
+      - name: Build APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Rename APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk lidovy-lecitel-${{ github.run_number }}.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lidovy-lecitel-apk
+          path: lidovy-lecitel-${{ github.run_number }}.apk
+
+      - name: Publish as release (easy download on the phone)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "build-${{ github.run_number }}" "lidovy-lecitel-${{ github.run_number }}.apk" \
+            --title "Testovací verze ${{ github.run_number }}" \
+            --notes "Stáhněte APK v telefonu a nainstalujte (povolte instalaci z neznámých zdrojů)." \
+            --latest
