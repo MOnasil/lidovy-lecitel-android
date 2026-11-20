@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { czAuthError } from "@/lib/ll/auth-errors";
 import { useApp } from "@/lib/ll/store";
+import { AvatarPicker } from "./Profil";
 
 type Mode = "login" | "signup" | "forgot";
 const TABS: [Mode, string][] = [
@@ -20,6 +21,7 @@ export function Prihlaseni() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [done, setDone] = useState("");
+  const [av, setAv] = useState("");
 
   // Already signed in (or just signed in): the profile is where medicines are filled in.
   useEffect(() => {
@@ -47,7 +49,10 @@ export function Prihlaseni() {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password: pass,
-          options: { emailRedirectTo: "cz.lidovylecitel.app://auth", data: { display_name: name.trim().slice(0, 80) } },
+          options: {
+            emailRedirectTo: "cz.lidovylecitel.app://auth",
+            data: { display_name: name.trim().slice(0, 80), avatar: av },
+          },
         });
         if (error) setErr(czAuthError(error.message));
         else if (!data.session)
@@ -89,6 +94,12 @@ export function Prihlaseni() {
         </div>
       ) : (
         <form className="form" onSubmit={submit} noValidate>
+          {mode == "signup" ? (
+            <div className="field">
+              Profilový obrázek (nepovinné)
+              <AvatarPicker value={av} onPick={(a) => setAv(a == av ? "" : a)} />
+            </div>
+          ) : null}
           {mode == "signup" ? (
             <label className="field">
               Jméno

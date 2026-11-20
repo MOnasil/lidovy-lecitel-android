@@ -10,7 +10,7 @@ import {
 } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-import type { GardenMode } from "./garden";
+import { KEY_VYSADBA, type GardenMode, type Planting } from "./garden";
 import { MED_PREFIX } from "./meds";
 
 // Signed out: profile, "Co mám doma" list and theme live only in this browser (localStorage);
@@ -20,6 +20,13 @@ const KEY_PROFILE = "ll-profil";
 /** Saved herbs live in the profile flags as "fav:<species key>" (no extra database column needed). */
 export const FAV_PREFIX = "fav:";
 const KEY_DOMA = "ll-doma";
+/** Complaints saved to the profile ("t:<topic>", "n:<condition>") live in the same flags. */
+export const POTIZ_PREFIXES = ["t:", "n:"] as const;
+/** Chosen profile picture: "avatar:<preset>" or "avatar:own" (uploaded photo), also in the flags. */
+export const AVATAR_PREFIX = "avatar:";
+/** Saved favourites were replaced by "Mám doma"; moved once per browser. */
+const KEY_FAV_MOVED = "ll-fav-presunuto";
+export type Vysadba = Record<string, Planting>;
 const KEY_THEME = "ll-theme";
 
 function read<T>(k: string, d: T): T {
@@ -107,6 +114,12 @@ type Ctx = {
   toggleFav: (k: string) => void;
   doma: string[];
   toggleDoma: (k: string) => void;
+  /** Herbs the user grows or plans to grow (Zahrádka) – shared by every "Chci pěstovat" button. */
+  vys: Vysadba;
+  setVys: (f: (p: Vysadba) => Vysadba) => void;
+  /** Chosen profile picture key ("" = none). */
+  avatar: string;
+  setAvatar: (a: string) => void;
   theme: Theme;
   setTheme: (t: Theme) => void;
 };
@@ -128,6 +141,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [account, setAccount] = useState<Account | null | undefined>(undefined);
   const [syncError, setSyncError] = useState(false);
   const [doma, setDoma] = useState<string[]>([]);
+  const [vys, setVysState] = useState<Vysadba>({});
   const [theme, setThemeState] = useState<Theme>("light");
   const uid = useRef<string | null>(null);
 
@@ -135,6 +149,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setFlags(new Set(read<string[]>(KEY_PROFILE, [])));
     setDoma(read<string[]>(KEY_DOMA, []));
+    setVysState(read<Vysadba>(KEY_VYSADBA, {}));
     setThemeState(read<Theme>(KEY_THEME, "light"));
   }, []);
 
@@ -180,7 +195,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         row = r.data ?? next;
       }
       setAccount({ id: user.id, email: user.email ?? "", name: row?.display_name || metaName });
-      setFlags(new Set(row?.flags ?? []));
+      const fl = new Set(row?.flags ?? []);
+      // profile picture chosen at sign-up travels in the user metadata until the first sign-in
+      const metaAv = String(user.user_metadata?.["avatar"] ?? "");
+      if (metaAv && ![...fl].some((f) => f.startsWith(AVATAR_PREFIX))) {
+        fl.add(AVATAR_PREFIX + metaAv);
+        void supabase.from("profiles").update({ flags: [...fl] }).eq("id", user.id);
+      }
+      setFlags(fl);
       setMedsState(row?.meds ?? []);
       setMedsOther(row?.meds_other ?? "");
     }
@@ -252,6 +274,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       return n;
     });
   }, []);
+  const setVys = useCallback((f: (p: Vysadba) => Vysadba) => {
+    setVysState((p) => {
+      const n = f(p);
+      write(KEY_VYSADBA, n);
+      return n;
+    });
+  }, []);
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t);
     write(KEY_THEME, t);
@@ -261,6 +290,32 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const favs = useMemo(
     () => [...flags].filter((f) => f.startsWith(FAV_PREFIX)).map((f) => f.slice(FAV_PREFIX.length)),
     [flags],
+  );
+  // One-time move of the old "Uložit do seznamu" favourites into "Mám doma".
+  useEffect(() => {
+    if (!favs.length || read<boolean>(KEY_FAV_MOVED, false)) return;
+    setDoma((d) => {
+      const n = [...new Set([...d, ...favs])];
+      write(KEY_DOMA, n);
+      return n;
+    });
+    write(KEY_FAV_MOVED, true);
+  }, [favs]);
+  const avatar = useMemo(
+    () => [...flags].find((f) => f.startsWith(AVATAR_PREFIX))?.slice(AVATAR_PREFIX.length) ?? "",
+    [flags],
+  );
+  const setAvatar = useCallback(
+    (a: string) => {
+      setFlags((p) => {
+        const n = new Set([...p].filter((f) => !f.startsWith(AVATAR_PREFIX)));
+        if (a) n.add(AVATAR_PREFIX + a);
+        if (uid.current) void saveRow({ flags: [...n] });
+        else write(KEY_PROFILE, [...n]);
+        return n;
+      });
+    },
+    [saveRow],
   );
   const toggleFav = useCallback(
     (k: string) => {
@@ -294,6 +349,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       toggleFav,
       doma,
       toggleDoma,
+      vys,
+      setVys,
+      avatar,
+      setAvatar,
       theme,
       setTheme,
     }),
@@ -314,6 +373,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       toggleFav,
       doma,
       toggleDoma,
+      vys,
+      setVys,
+      avatar,
+      setAvatar,
       theme,
       setTheme,
     ],

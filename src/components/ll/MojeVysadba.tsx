@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { D, SP } from "@/lib/ll/data";
 import {
   KEY_NOTIF,
-  KEY_VYSADBA,
   MES,
   dueReminders,
   gardenEvents,
@@ -17,7 +16,7 @@ import { TOP, TP, grade } from "@/lib/ll/data";
 import { photo } from "@/lib/ll/photos";
 
 /** One or two complaints the herb is grown for: the planner's chosen ones first, else its best-backed ones. */
-function usedFor(k: string, topics: string[]): string {
+export function usedFor(k: string, topics: string[]): string {
   const ok = (t: string) => {
     const g = grade(k, t);
     return g != null && g != "C";
@@ -42,10 +41,13 @@ function nextStep(k: string, p: Planting): { t: string; za: number } {
   return { t: `${word}: ${when}`, za: ev.za };
 }
 
-export type Vysadba = Record<string, Planting>;
+export type { Vysadba } from "@/lib/ll/store";
+type Vysadba = import("@/lib/ll/store").Vysadba;
 
-export function useVysadba() {
-  return useLocal<Vysadba>(KEY_VYSADBA, {});
+/** Shared with every "Chci pěstovat" button (state lives in the app context). */
+export function useVysadba(): [Vysadba, (f: (p: Vysadba) => Vysadba) => void] {
+  const { vys, setVys } = useApp();
+  return [vys, setVys];
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -112,7 +114,7 @@ const GROUPS: { g: Row["g"]; icon: string; t: string }[] = [
 ];
 
 /** Forms the herb is used in (icons + names), for the "Mám doma" rows. */
-function formsLabel(k: string): string {
+export function formsLabel(k: string): string {
   const f = SP[k]?.formy ?? [];
   return (
     f

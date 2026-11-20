@@ -1,7 +1,7 @@
 // Copies the shared app code from the web project (Lovable repo MOnasil/project-migration-studio)
 // into src/, then applies the few Android-specific changes. Run: npm run sync-web [-- <path to web repo>]
 // Android-only files (main.tsx, routes/__root.tsx, integrations/supabase/client.ts, native/*) are never overwritten.
-import { cpSync, existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const WEB = resolve(process.argv[2] ?? process.env.WEB_DIR ?? "../project-migration-studio");
@@ -13,8 +13,9 @@ const copy = (rel) => {
 };
 for (const rel of ["components/ll", "lib/ll", "data", "styles.css"]) copy(rel);
 // Routes: everything except the web document shell.
-for (const f of ["atlas.$druh.tsx", "atlas.index.tsx", "auth.tsx", "babske.tsx", "doma.tsx", "index.tsx", "profil.tsx", "reset-password.tsx", "zahradka.tsx"])
-  if (existsSync(join(WEB, "src/routes", f))) cpSync(join(WEB, "src/routes", f), join("src/routes", f));
+for (const f of readdirSync("src/routes")) if (f != "__root.tsx") rmSync(join("src/routes", f));
+for (const f of readdirSync(join(WEB, "src/routes")))
+  if (f.endsWith(".tsx") && f != "__root.tsx") cpSync(join(WEB, "src/routes", f), join("src/routes", f));
 
 // Photos: the app ships its own copies (public/img), so map species keys to local files.
 const photos = JSON.parse(readFileSync("src/data/ll-photos.json", "utf8"));

@@ -5,7 +5,6 @@ import {
   GSIZE,
   KEY_GARDEN_EDITS,
   MES,
-  MONTH_LETTERS,
   gardenAlternatives,
   gardenPlan,
   gardenPrice,
@@ -16,6 +15,7 @@ import { useLocal } from "@/lib/ll/local";
 import { useApp } from "@/lib/ll/store";
 import { FormChips, SpeciesLink, Who } from "./common";
 import { MojeVysadba, PlantButtons, useVysadba } from "./MojeVysadba";
+import { MonthBar, MonthLegend, TICON } from "./DruhHead";
 
 const MODES: [GardenMode, string][] = [
   ["zahrada", "Zahrada"],
@@ -165,6 +165,27 @@ export function Zahradka() {
     [0, 0] as [number, number],
   );
   const stav = (k: string) => vys[k]?.stav;
+  // with several complaints the plan is split into groups (herbs for more complaints first)
+  type PlanItem = (typeof out)[number];
+  const groups: { k: string; icon: string; t: string; items: PlanItem[] }[] =
+    ui.gt.length > 1
+      ? [
+          {
+            k: "multi",
+            icon: "⭐",
+            t: "Pomáhá na víc vašich potíží",
+            items: out.filter((x) => x.fit.length > 1),
+          },
+          ...ui.gt.map((t) => ({
+            k: t,
+            icon: TICON[t] ?? "🌿",
+            t: TP[t]?.n ?? t,
+            items: out.filter((x) => x.fit.length <= 1 && x.fit[0]?.[0] == t),
+          })),
+        ]
+      : [{ k: "all", icon: "", t: "", items: out }];
+  const leftover = out.filter((x) => !groups.some((G) => G.items.includes(x)));
+  if (leftover.length) groups.push({ k: "other", icon: "🌿", t: "Další", items: leftover });
   const remove = (k: string) =>
     setEdits((e) => ({ skip: [...new Set([...e.skip, k])], force: e.force.filter((x) => x != k) }));
   const replace = (k: string, by: string) =>
@@ -216,176 +237,156 @@ export function Zahradka() {
             ↺ Obnovit původní plán
           </button>
         ) : null}
-        <div className="gcal" role="table" aria-label="Kalendář výsadby a sklizně">
-          <div className="gr gh" role="row">
-            <span role="columnheader" />
-            {MONTH_LETTERS.map((m, i) => (
-              <span key={i} role="columnheader" title={MES[i]}>
-                {m}
-              </span>
-            ))}
-          </div>
+        <div className="gcal1">
           {out.map((x) => (
-            <div key={x.k} className={`gr${stav(x.k) ? " st-" + stav(x.k) : ""}`} role="row">
-              <span role="rowheader">
+            <div key={x.k} className={`gcal1-r${stav(x.k) ? " st-" + stav(x.k) : ""}`}>
+              <span className="gcal1-n">
                 {stav(x.k) == "vysazeno" ? "🌱 " : stav(x.k) == "plan" ? "📝 " : ""}
                 {SP[x.k]!.cz.split(" (")[0]}
               </span>
-              {MES.map((_, i) => {
-                const s = x.g[4].includes(i + 1);
-                const r = x.g[5].includes(i + 1);
-                return (
-                  <span
-                    key={i}
-                    role="cell"
-                    className="gc"
-                    title={[MES[i], s ? "výsev / výsadba" : "", r ? "sklizeň" : ""]
-                      .filter(Boolean)
-                      .join(" – ")}
-                  >
-                    <i className={s ? "s" : ""} />
-                    <i className={r ? "h" : ""} />
-                  </span>
-                );
-              })}
+              <MonthBar sow={x.g[4]} harvest={x.g[5]} />
             </div>
           ))}
         </div>
-        <div className="glegend">
-          <span>
-            <span className="lg s" /> <b>Výsev / výsadba</b> – horní pruh
-          </span>
-          <span>
-            <span className="lg h" /> <b>Sklizeň</b> – dolní pruh
-          </span>
-          <span>🌱 vysazeno · 📝 plánuji</span>
-        </div>
+        <MonthLegend />
+        <p className="mleg">🌱 vysazeno · 📝 plánuji</p>
       </section>
-      {out.map((x) => {
-        const s = SP[x.k]!;
-        const g = x.g;
-        const u = U(x.k);
-        const w = warns(x.k, prof)
-          .filter((y) => y.f == "*")
-          .slice(0, 1);
-        const side = Math.round(Math.sqrt(g[0]) * 100);
-        const place =
-          ui.gm == "zahrada"
-            ? g[0] >= 1
-              ? `asi ${g[0]} m² (${g[3] == "K" ? "keř" : "velká rostlina"})`
-              : `asi ${side} × ${side} cm`
-            : `nádoba aspoň ${g[1]} l`;
-        return (
-          <article key={x.k} className={`box rec${stav(x.k) ? " st-" + stav(x.k) : ""}`}>
-            {stav(x.k) ? (
-              <div className={`st-badge ${stav(x.k)}`}>
-                {stav(x.k) == "vysazeno" ? "🌱 Vysazeno" : "📝 Plánuji vysadit"}
+      {groups.map((G) => [
+        G.items.length && G.t ? (
+          <h3 key={"h" + G.k} className="g-grp">
+            {G.icon} {G.t} – {G.items.length}{" "}
+            {G.items.length == 1 ? "bylina" : G.items.length < 5 ? "byliny" : "bylin"}
+          </h3>
+        ) : null,
+        ...G.items.map((x) => {
+          const s = SP[x.k]!;
+          const g = x.g;
+          const u = U(x.k);
+          const w = warns(x.k, prof)
+            .filter((y) => y.f == "*")
+            .slice(0, 1);
+          const side = Math.round(Math.sqrt(g[0]) * 100);
+          const place =
+            ui.gm == "zahrada"
+              ? g[0] >= 1
+                ? `asi ${g[0]} m² (${g[3] == "K" ? "keř" : "velká rostlina"})`
+                : `asi ${side} × ${side} cm`
+              : `nádoba aspoň ${g[1]} l`;
+          return (
+            <article key={x.k} className={`box rec${stav(x.k) ? " st-" + stav(x.k) : ""}`}>
+              {stav(x.k) ? (
+                <div className={`st-badge ${stav(x.k)}`}>
+                  {stav(x.k) == "vysazeno" ? "🌱 Vysazeno" : "📝 Plánuji vysadit"}
+                </div>
+              ) : null}
+              <div className="top">
+                <Who s={s} sub={`${s.lat} · ${LIFE[g[3]] ?? ""}`} />
               </div>
-            ) : null}
-            <div className="top">
-              <Who s={s} sub={`${s.lat} · ${LIFE[g[3]] ?? ""}`} />
-            </div>
-            <PlantButtons k={x.k} v={vys} setV={setVys} />
-            <div className="g-edit">
-              <button type="button" className="chip sm" onClick={() => remove(x.k)}>
-                ✕ Odebrat
-              </button>
-              <button
-                type="button"
-                className="chip sm"
-                aria-expanded={swapFor == x.k}
-                onClick={() => setSwapFor((v) => (v == x.k ? null : x.k))}
-              >
-                ⇄ Nahradit
-              </button>
-            </div>
-            {swapFor == x.k ? (
-              <div className="g-swap">
-                {gardenAlternatives(x.k, plan).length ? (
-                  <>
-                    <span className="note">Nahradit za:</span>
-                    {gardenAlternatives(x.k, plan).map((a) => (
-                      <button
-                        key={a.k}
-                        type="button"
-                        className="chip sm"
-                        onClick={() => (replace(x.k, a.k), setSwapFor(null))}
-                      >
-                        {SP[a.k]!.cz}
-                      </button>
-                    ))}
-                  </>
-                ) : (
-                  <span className="note">Pro tyto potíže a místo nemáme jinou vhodnou bylinu.</span>
-                )}
+              <PlantButtons k={x.k} v={vys} setV={setVys} />
+              <div className="g-edit">
+                <button type="button" className="chip sm" onClick={() => remove(x.k)}>
+                  ✕ Odebrat
+                </button>
+                <button
+                  type="button"
+                  className="chip sm"
+                  aria-expanded={swapFor == x.k}
+                  onClick={() => setSwapFor((v) => (v == x.k ? null : x.k))}
+                >
+                  ⇄ Nahradit
+                </button>
               </div>
-            ) : null}
-            <div className="fit">
-              {x.fit.map((f) => (
-                <span key={f[0]} className="y">
-                  ✓ {TP[f[0]]?.n}
-                </span>
+              {swapFor == x.k ? (
+                <div className="g-swap">
+                  {gardenAlternatives(x.k, plan).length ? (
+                    <>
+                      <span className="note">Nahradit za:</span>
+                      {gardenAlternatives(x.k, plan).map((a) => (
+                        <button
+                          key={a.k}
+                          type="button"
+                          className="chip sm"
+                          onClick={() => (replace(x.k, a.k), setSwapFor(null))}
+                        >
+                          {SP[a.k]!.cz}
+                        </button>
+                      ))}
+                    </>
+                  ) : (
+                    <span className="note">
+                      Pro tyto potíže a místo nemáme jinou vhodnou bylinu.
+                    </span>
+                  )}
+                </div>
+              ) : null}
+              <div className="why-tags" aria-label="Proč ji pěstuji">
+                {x.fit.map((f) => (
+                  <span key={f[0]} className="why-tag">
+                    {TICON[f[0]] ?? "🌿"} {TP[f[0]]?.n.split(/,| a /)[0]?.toLowerCase()}
+                  </span>
+                ))}
+              </div>
+              <MonthBar sow={g[4]} harvest={g[5]} />
+              <div className="rows">
+                <div className="row">
+                  <span>
+                    <span className="lg s" />
+                    Kdy zasadit
+                  </span>
+                  <span>{g[4].map((m) => MES[m - 1]).join(", ")}</span>
+                </div>
+                <div className="row stack">
+                  <span className="note">{g[7]}</span>
+                </div>
+                <div className="row">
+                  <span>Místo</span>
+                  <span>{place}</span>
+                </div>
+                <div className="row">
+                  <span>
+                    <span className="lg h" />
+                    Kdy sklidit
+                  </span>
+                  <span>
+                    {g[5].length == 12 ? "celý rok" : g[5].map((m) => MES[m - 1]).join(", ")}
+                  </span>
+                </div>
+                <div className="row">
+                  <span>Co sklízet</span>
+                  <span>{g[6]}</span>
+                </div>
+                <div className="row">
+                  <span>Orientační cena</span>
+                  <span>
+                    {gardenPrice(x.k).od}–{gardenPrice(x.k).do} Kč ({gardenPrice(x.k).co})
+                  </span>
+                </div>
+                {u ? (
+                  <div className="row stack">
+                    <b>Jak užívat:</b> {u[0]}
+                    <FormChips s={s} />
+                  </div>
+                ) : null}
+                {u && u[6] ? (
+                  <div className="row stack">
+                    <b>Sušení a skladování:</b> {u[6]}
+                  </div>
+                ) : null}
+              </div>
+              {w.map((y, i) => (
+                <div key={i} className="alert warn">
+                  <b>Pozor:</b> {y.t}
+                </div>
               ))}
-            </div>
-            <div className="rows">
-              <div className="row">
-                <span>
-                  <span className="lg s" />
-                  Kdy zasadit
-                </span>
-                <span>{g[4].map((m) => MES[m - 1]).join(", ")}</span>
+              <div>
+                <SpeciesLink k={x.k} className="btn ghost">
+                  Studie a podrobnosti
+                </SpeciesLink>
               </div>
-              <div className="row stack">
-                <span className="note">{g[7]}</span>
-              </div>
-              <div className="row">
-                <span>Místo</span>
-                <span>{place}</span>
-              </div>
-              <div className="row">
-                <span>
-                  <span className="lg h" />
-                  Kdy sklidit
-                </span>
-                <span>
-                  {g[5].length == 12 ? "celý rok" : g[5].map((m) => MES[m - 1]).join(", ")}
-                </span>
-              </div>
-              <div className="row">
-                <span>Co sklízet</span>
-                <span>{g[6]}</span>
-              </div>
-              <div className="row">
-                <span>Orientační cena</span>
-                <span>
-                  {gardenPrice(x.k).od}–{gardenPrice(x.k).do} Kč ({gardenPrice(x.k).co})
-                </span>
-              </div>
-              {u ? (
-                <div className="row stack">
-                  <b>Jak užívat:</b> {u[0]}
-                  <FormChips s={s} />
-                </div>
-              ) : null}
-              {u && u[6] ? (
-                <div className="row stack">
-                  <b>Sušení a skladování:</b> {u[6]}
-                </div>
-              ) : null}
-            </div>
-            {w.map((y, i) => (
-              <div key={i} className="alert warn">
-                <b>Pozor:</b> {y.t}
-              </div>
-            ))}
-            <div>
-              <SpeciesLink k={x.k} className="btn ghost">
-                Studie a podrobnosti
-              </SpeciesLink>
-            </div>
-          </article>
-        );
-      })}
+            </article>
+          );
+        }),
+      ])}
       <p className="note">
         Rady k pěstování jsou obecné a sestavené z běžných zahradnických zásad; termíny platí pro
         střední polohy ČR.

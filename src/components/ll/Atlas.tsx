@@ -4,7 +4,7 @@ import { TCM, growLabel } from "@/lib/ll/display";
 import { photo } from "@/lib/ll/photos";
 import { useApp } from "@/lib/ll/store";
 import { AtlasExtras } from "./Babske";
-import { DomaButton, SpeciesLink } from "./common";
+import { MineButtons, SpeciesLink } from "./common";
 
 /** How many herbs/mushrooms the Atlas shows before "Rozbalit vše". */
 export const ATLAS_FIRST = 8;
@@ -26,7 +26,7 @@ const FILTERS: [string, string][] = [
 ];
 
 export function Atlas() {
-  const { ui, setUI, account, favs } = useApp();
+  const { ui, setUI, doma } = useApp();
   const [open, setOpen] = useState(false);
   const f = ui.af;
   const q = norm(ui.as);
@@ -37,7 +37,7 @@ export function Atlas() {
       f == "vse" ||
       s.kat == f ||
       (f == "tcm" && TCM.has(s.k)) ||
-      (f == "fav" && favs.includes(s.k)) ||
+      (f == "doma" && doma.includes(s.k)) ||
       (f == "cr" && s.cr) ||
       (f == "pest" && (gl == D.grow["E"] || gl == D.grow["M"]));
     return okF && (!q || norm(s.cz + " " + s.lat + " " + (s.ln || []).join(" ")).includes(q));
@@ -58,19 +58,17 @@ export function Atlas() {
           />
         </div>
         <div className="chips">
-          {(account ? [["fav", "★ Můj seznam"] as [string, string], ...FILTERS] : FILTERS).map(
-            (x) => (
-              <button
-                key={x[0]}
-                type="button"
-                className="chip"
-                aria-pressed={f == x[0]}
-                onClick={() => setUI({ af: x[0] })}
-              >
-                {x[1]}
-              </button>
-            ),
-          )}
+          {[["doma", "✓ Mám doma"] as [string, string], ...FILTERS].map((x) => (
+            <button
+              key={x[0]}
+              type="button"
+              className="chip"
+              aria-pressed={f == x[0]}
+              onClick={() => setUI({ af: x[0] })}
+            >
+              {x[1]}
+            </button>
+          ))}
         </div>
         {f == "tcm" ? (
           <p className="note">
@@ -106,7 +104,7 @@ export function Atlas() {
                     </div>
                   </div>
                 </SpeciesLink>
-                <DomaButton k={s.k} sm />
+                <MineButtons k={s.k} sm />
               </div>
             );
           })}

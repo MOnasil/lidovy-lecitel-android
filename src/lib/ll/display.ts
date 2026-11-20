@@ -267,3 +267,90 @@ export function habitat(k: string): { ic: string; t: string } | null {
     ? { ic: "🏡", t: "V přírodě v ČR neroste, dá se pěstovat" }
     : { ic: "🌍", t: "V ČR neroste – dovážená" };
 }
+
+/* ---------- Kde sehnat: icons for the places in the text ---------- */
+const SOURCE_ICONS: [RegExp, string, string][] = [
+  [/lékárn|předpis/i, "💊", "lékárna"],
+  [/drogeri/i, "🧴", "drogerie"],
+  [/e-shop|bylinkářstv|prodejn/i, "🛒", "e-shop"],
+  [/obchod|supermarket|trh|tržnic/i, "🥬", "obchod"],
+  [/včelař/i, "🐝", "včelaři"],
+  [/vypěstovat|vypěstujete|pěstírn|pokojov|květináč/i, "🌱", "pěstování"],
+  [/nasbírat|v přírodě/i, "🌳", "příroda"],
+];
+/** Icons (with labels) for the places mentioned in the "Kde sehnat" sentence. */
+export function sourceIcons(text: string): { ic: string; t: string }[] {
+  return SOURCE_ICONS.filter(([rx]) => rx.test(text)).map(([, ic, t]) => ({ ic, t }));
+}
+
+/* ---------- Jak zpracovat: steps from the data the app already has ---------- */
+export type ProcStep = { ic: string; t: string; d: string };
+const sentences = (t: string) => t.split(/(?<=\.)\s+/).filter(Boolean);
+const HARD_PART = /kořen|oddenek|semen|semínk|kůr|plod|bobul|choroš|houb|plodnic/i;
+
+/** Steps "získat → usušit → rozdrtit → připravit → skladovat"; steps that do not apply are left out. */
+export function processSteps(k: string): ProcStep[] {
+  const s = SP[k];
+  const u = U(k);
+  if (!s || !u) return [];
+  const out: ProcStep[] = [];
+  const g = D.garden[k];
+  const gi = growInfo(k);
+  const part = g?.[6] ?? "";
+  const proc = String(u[6] ?? "");
+  const mon = (ms: number[]) => ms.map((m) => MON[m - 1]).join(", ");
+  // 1. get it
+  const get: string[] = [];
+  if (g && gi && gi.lvl != "N") {
+    const when = [
+      g[4].length ? `zasít ${mon(g[4])}` : "",
+      g[5].length ? `sklízet ${mon(g[5])}` : "",
+    ]
+      .filter(Boolean)
+      .join(", ");
+    get.push(`Vypěstovat: ${when}${part ? ` – sklízí se ${part}` : ""}.`);
+  }
+  if (D.hab?.[k] == "W" && s.kdy && s.kdy != "—")
+    get.push(`Nasbírat v přírodě: ${s.kdy.charAt(0).toLowerCase()}${s.kdy.slice(1)}`);
+  if (u[4] && u[4] != "—") get.push(u[4]);
+  if (get.length) out.push({ ic: "🌱", t: "Získat", d: get.join(" ") });
+  // 2. dry
+  const dry = sentences(proc).filter((x) => /suš/i.test(x) && !/^Skladujte/i.test(x));
+  if (dry.length) out.push({ ic: "☀️", t: "Usušit", d: dry.join(" ") });
+  // 3. crush / grind
+  const grindForms = s.formy.some((f) =>
+    ["odvar", "odvarb", "prasek", "kapsle", "koreni", "caj"].includes(f),
+  );
+  if (dry.length && grindForms) {
+    const hard = HARD_PART.test(part || proc);
+    out.push({
+      ic: "⚙️",
+      t: hard ? "Rozdrtit nebo namlít" : "Rozdrobit",
+      d: hard
+        ? "Usušené kousky před použitím nadrťte v hmoždíři nebo nameťte v mlýnku na kávu – nejlépe těsně před přípravou, protože vonné a účinné látky z rozemleté drogy rychle vyprchávají."
+        : "Listy a květy stačí před přípravou lehce rozdrobit v prstech. Nemelte je na prach, čaj by se špatně cedil a rychleji by ztrácel vůni.",
+    });
+  }
+  // 4. prepare
+  const homeForms = s.formy.filter((f) => !["kapsle", "extrakt"].includes(f) && D.forms[f]);
+  if (homeForms.length)
+    out.push({
+      ic: "🍵",
+      t: "Připravit",
+      d: homeForms.map((f) => `${D.forms[f]![0]}: ${D.forms[f]![1]}`).join("\n"),
+    });
+  // 5. store
+  const store = sentences(proc).filter((x) => /sklad|uchov|vydrž|spotřeb|lednic|zamra/i.test(x));
+  const restAfterDry = store.map((x) => x.replace(/^.*?(Skladujte)/, "$1"));
+  if (restAfterDry.length) out.push({ ic: "🫙", t: "Skladovat", d: restAfterDry.join(" ") });
+  // processing text that fits no step stays visible
+  const used = new Set([...dry, ...store]);
+  const other = sentences(proc).filter((x) => !used.has(x));
+  if (other.length)
+    out.splice(Math.min(out.length, 1), 0, {
+      ic: "✂️",
+      t: "Očistit a připravit k sušení",
+      d: other.join(" "),
+    });
+  return out;
+}

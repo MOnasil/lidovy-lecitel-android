@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { D, HUM, SP, U, kat, rank, studies, warns, fmt } from "@/lib/ll/data";
-import { habitat, interestingTrad } from "@/lib/ll/display";
+import { habitat, interestingTrad, processSteps, sourceIcons } from "@/lib/ll/display";
+import { scrollToAnchor, takePendingAnchor } from "@/lib/ll/jump";
 import { useApp } from "@/lib/ll/store";
 import { AbsList, GeneralAlerts, IxList, StudyItem, UseItem, WarnAlert } from "./common";
 import { EvidenceCard, FactTiles, FormsAbsorb, HeadCard, MonthCard, Sec } from "./DruhHead";
@@ -161,7 +162,7 @@ export function Druh({ k }: { k: string }) {
   const hum = pos.filter((x) => HUM.includes(x.st));
   const oth = pos.filter((x) => !HUM.includes(x.st));
   const tr = D.trad.filter((t) => t[0] == k);
-  const risk = all.filter((x) => x.d == "r").slice(0, 6);
+  const risk = all.filter((x) => x.d == "r").sort((a, b) => (b.y || 0) - (a.y || 0));
   const lt = D.lt[k];
   const kt = kat(s);
   const u = U(k);
@@ -170,6 +171,20 @@ export function Druh({ k }: { k: string }) {
   const occInfo = occText(k);
   const hab = habitat(k);
   const pz = D.poznat?.[k];
+  const ixRisk = ixItems.filter((x) => x.t == "R" || x.t == "Z");
+  const steps = processSteps(k);
+  const srcIc = u ? sourceIcons(u[4]) : [];
+
+  // Arriving from a list with a chosen form (e.g. tapping "Nálev"): scroll straight to it.
+  useEffect(() => {
+    const a = takePendingAnchor();
+    if (a) window.setTimeout(() => scrollToAnchor(a), 80);
+  }, [k]);
+  const toPozor = (
+    <button type="button" className="linkish" onClick={() => scrollToAnchor("pozor")}>
+      viz Na co si dát pozor
+    </button>
+  );
 
   return (
     <>
@@ -182,11 +197,11 @@ export function Druh({ k }: { k: string }) {
           <>
             {w.some((x) => x.meds?.length) ? (
               <div className="alert crit">
-                <b>Možný střet s vašimi léky</b> – viz Na co si dát pozor.
+                <b>Možný střet s vašimi léky</b> – {toPozor}.
               </div>
             ) : w.some((x) => x.hit) ? (
               <div className="alert crit">
-                <b>Pro vás nevhodné</b> – viz Na co si dát pozor.
+                <b>Pro vás nevhodné</b> – {toPozor}.
               </div>
             ) : null}
           </>
@@ -255,12 +270,13 @@ export function Druh({ k }: { k: string }) {
           <IxList items={ixItems} />
         </Sec>
       ) : null}
-      {w.length || risk.length || lt ? (
+      {w.length || risk.length || lt || ixRisk.length ? (
         <Sec
           icon="⚠️"
           title="Na co si dát pozor"
-          n={w.length + risk.length}
+          n={w.length + risk.length + ixRisk.length}
           id="pozor"
+          warn
           open={w.some((x) => x.hit || x.meds?.length)}
         >
           {w.map((x, i) => (
@@ -275,24 +291,55 @@ export function Druh({ k }: { k: string }) {
             </div>
           ) : null}
           {risk.length ? (
-            <details open={!w.length}>
-              <summary>Rizika popsaná ve studiích ({risk.length})</summary>
+            <details open>
+              <summary>Studie, které upozorňují na rizika ({risk.length})</summary>
               {risk.map((x) => (
                 <StudyItem key={x.i} s={x} />
               ))}
+            </details>
+          ) : null}
+          {ixRisk.length ? (
+            <details open={!risk.length}>
+              <summary>Rizikové kombinace s léky a jídlem ({ixRisk.length})</summary>
+              <IxList items={ixRisk} />
             </details>
           ) : null}
         </Sec>
       ) : null}
       {u ? (
         <Sec icon="🧺" title="Kde sehnat a jak zpracovat">
-          <div className="rows">
-            <div className="row">
-              <span>Kde sehnat</span>
-              <span>{u[4]}</span>
+          <h4 className="fgrp">Kde sehnat</h4>
+          {srcIc.length ? (
+            <div className="src-ic">
+              {srcIc.map((x) => (
+                <span key={x.t} className="src-chip">
+                  <span aria-hidden="true">{x.ic}</span> {x.t}
+                </span>
+              ))}
             </div>
-            {u[6] ? <div className="row stack">{u[6]}</div> : null}
-          </div>
+          ) : null}
+          <p className="mt-1">{u[4]}</p>
+          {steps.length ? <h4 className="fgrp">Jak zpracovat</h4> : null}
+          <ol className="steps">
+            {steps.map((st) => (
+              <li key={st.t}>
+                <span className="step-ic" aria-hidden="true">
+                  {st.ic}
+                </span>
+                <div>
+                  <b>{st.t}</b>
+                  {st.d.split("\n").map((l, i) => (
+                    <p key={i}>{l}</p>
+                  ))}
+                </div>
+              </li>
+            ))}
+          </ol>
+          {steps.length ? (
+            <p className="note">
+              Obecný postup – dávky a časy přípravy si ověřte u lékárníka nebo v příbalovém letáku.
+            </p>
+          ) : null}
         </Sec>
       ) : null}
       {absItems && absItems.length ? (

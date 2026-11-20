@@ -1,11 +1,15 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { SP } from "@/lib/ll/data";
+import { avatarSrc } from "@/lib/ll/avatars";
 import { useApp } from "@/lib/ll/store";
+import { Welcome } from "./Welcome";
 
 const NAV = [
   { to: "/", label: "Co mě trápí", exact: true },
   { to: "/atlas", label: "Atlas" },
+  { to: "/interakce", label: "Interakce" },
+  { to: "/lekarnik", label: "Lékárník" },
   { to: "/zahradka", label: "Zahrádka" },
 ] as const;
 
@@ -60,52 +64,109 @@ export function Logo({ size = 36 }: { size?: number }) {
   );
 }
 
-/** Top-right account area: small "Přihlásit se" + profile icon when signed out, initials when signed in. */
+/** Top-right account area: profile picture (or initials / 👤) with the label "Můj profil". */
 function AccountLink() {
-  const { account } = useApp();
+  const { account, avatar } = useApp();
   if (account === undefined) return <div className="acct-area" />;
-  if (account) {
-    const name = account.name || account.email;
-    const ini = name
-      .split(/[\s@.]+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((x) => x[0]!.toUpperCase())
-      .join("");
-    return (
-      <div className="acct-area">
-        <Link
-          to="/profil"
-          className="acct-av"
-          title={`Profil – ${account.email}`}
-          aria-label="Profil"
-        >
-          {ini || "👤"}
-        </Link>
-      </div>
-    );
-  }
+  const src = avatarSrc(avatar);
+  const name = account ? account.name || account.email : "";
+  const ini = name
+    .split(/[\s@.]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((x) => x[0]!.toUpperCase())
+    .join("");
   return (
     <div className="acct-area">
-      <Link to="/auth" className="acct-in">
-        Přihlásit se
-      </Link>
-      <Link to="/profil" className="acct-av" aria-label="Profil">
-        👤
+      {account ? null : (
+        <Link to="/auth" className="acct-in">
+          Přihlásit se
+        </Link>
+      )}
+      <Link
+        to="/profil"
+        className="acct-link"
+        title={account ? `Můj profil – ${account.email}` : "Můj profil"}
+      >
+        <span className="acct-av">{src ? <img src={src} alt="" /> : ini || "👤"}</span>
+        <span className="acct-lbl">Můj profil</span>
       </Link>
     </div>
   );
 }
 
-export function Layout({ children }: { children: ReactNode }) {
-  const [zoom, setZoom] = useState<{ src: string; alt: string } | null>(null);
-
+/** Full-screen photo viewer; with several photos it has arrows, a counter and swiping. */
+function Lightbox({
+  list,
+  i,
+  alt,
+  onClose,
+  setI,
+}: {
+  list: string[];
+  i: number;
+  alt: string;
+  onClose: () => void;
+  setI: (n: number) => void;
+}) {
+  const n = list.length;
+  const go = (d: number) => setI((i + d + n) % n);
+  const [x0, setX0] = useState<number | null>(null);
   useEffect(() => {
-    if (!zoom) return;
-    const onKey = (e: KeyboardEvent) => e.key == "Escape" && setZoom(null);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key == "Escape") onClose();
+      else if (e.key == "ArrowRight" && n > 1) setI((i + 1) % n);
+      else if (e.key == "ArrowLeft" && n > 1) setI((i - 1 + n) % n);
+    };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [zoom]);
+  }, [i, n, onClose, setI]);
+  return (
+    <div
+      className="lb"
+      role="dialog"
+      aria-label="Zvětšená fotka"
+      onClick={onClose}
+      onTouchStart={(e) => setX0(e.touches[0]?.clientX ?? null)}
+      onTouchEnd={(e) => {
+        const x1 = e.changedTouches[0]?.clientX;
+        if (x0 != null && x1 != null && Math.abs(x1 - x0) > 40 && n > 1) go(x1 < x0 ? 1 : -1);
+        setX0(null);
+      }}
+    >
+      <img src={list[i]} alt={alt} onClick={(e) => e.stopPropagation()} />
+      {n > 1 ? (
+        <>
+          <button
+            type="button"
+            className="lb-nav prev"
+            aria-label="Předchozí fotka"
+            onClick={(e) => (e.stopPropagation(), go(-1))}
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            className="lb-nav next"
+            aria-label="Další fotka"
+            onClick={(e) => (e.stopPropagation(), go(1))}
+          >
+            ›
+          </button>
+          <span className="lb-cnt">
+            {i + 1}/{n}
+          </span>
+        </>
+      ) : null}
+      <button type="button" className="lbx" aria-label="Zavřít">
+        ✕
+      </button>
+    </div>
+  );
+}
+
+export function Layout({ children }: { children: ReactNode }) {
+  const [zoom, setZoom] = useState<{ list: string[]; i: number; alt: string } | null>(null);
 
   // Any element with data-zoom opens its photo full-screen (same as the original app).
   const onClickCapture = (e: React.MouseEvent) => {
@@ -114,7 +175,17 @@ export function Layout({ children }: { children: ReactNode }) {
     e.preventDefault();
     e.stopPropagation();
     const img = z.tagName == "IMG" ? (z as HTMLImageElement) : z.querySelector("img");
-    setZoom({ src: z.dataset["zoom"]!, alt: img?.alt ?? "" });
+    const src = z.dataset["zoom"]!;
+    // a gallery (several photos of one plant) can be browsed with arrows
+    let list = [src];
+    try {
+      const g = z.closest<HTMLElement>("[data-gallery]")?.dataset["gallery"];
+      const parsed = g ? (JSON.parse(g) as string[]).filter(Boolean) : [];
+      if (parsed.length > 1) list = parsed;
+    } catch {
+      /* no gallery */
+    }
+    setZoom({ list, i: Math.max(0, list.indexOf(src)), alt: img?.alt ?? "" });
   };
 
   return (
@@ -153,13 +224,15 @@ export function Layout({ children }: { children: ReactNode }) {
         </p>
       </div>
       {zoom ? (
-        <div className="lb" role="dialog" aria-label="Zvětšená fotka" onClick={() => setZoom(null)}>
-          <img src={zoom.src} alt={zoom.alt} />
-          <button type="button" className="lbx" aria-label="Zavřít">
-            ✕
-          </button>
-        </div>
+        <Lightbox
+          list={zoom.list}
+          i={zoom.i}
+          alt={zoom.alt}
+          onClose={() => setZoom(null)}
+          setI={(i) => setZoom((z) => (z ? { ...z, i } : z))}
+        />
       ) : null}
+      <Welcome />
       <LegacyHashRedirect />
     </>
   );

@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import {
   D,
@@ -20,19 +20,23 @@ import {
   nscore,
   nstudies,
   score,
+  slug,
   warns,
 } from "@/lib/ll/data";
 import { understand } from "@/lib/ll/understand";
 import { useApp, type UIState } from "@/lib/ll/store";
 import type { Grade, Species, Study } from "@/lib/ll/types";
-import { FavButton, GeneralAlerts, HowToUse, Pill, SpeciesLink, WarnAlert, Who } from "./common";
+import { GeneralAlerts, HowToUse, MineButtons, Pill, SpeciesLink, WarnAlert, Who } from "./common";
+import { setPendingAnchor } from "@/lib/ll/jump";
 import { FormIcons } from "./DruhHead";
-import { Lekarnik } from "./Lekarnik";
 
 type Label = { id: string; n: string; g: (sp: string) => Grade | null };
 type Row = [string, Grade];
 /** A rendered piece of the result list; `art` marks a recommendation card. */
 type Item = { key: string; el: ReactNode; art?: boolean };
+
+/** Strongest evidence first: S (many studies), A (tested on people), B (first human tests), C (lab). */
+const GRANK: Record<Grade, number> = { S: 0, A: 1, B: 2, C: 3 };
 
 /** How many of the most common topics are shown before "Další potíže…". */
 const COMMON_TOPICS = 10;
@@ -83,6 +87,7 @@ function RecCard({
   labels,
   prof,
   home,
+  cover,
 }: {
   sp: string;
   g: Grade;
@@ -91,21 +96,42 @@ function RecCard({
   labels: Label[];
   prof: ReadonlySet<string>;
   home?: boolean;
+  /** "covers all / n of m chosen complaints" headline for the top card */
+  cover?: string | undefined;
 }) {
   const s = SP[sp]!;
+  const nav = useNavigate();
   const w = warns(sp, prof);
   const hit = w.filter((x) => x.hit);
   const u = U(sp);
   const cls =
-    (hit.length ? " no" : feat ? " feat" : g == "C" ? " less" : "") + (home ? " home" : "");
+    (hit.length ? " no" : g == "C" ? " less" : g == "B" ? " gb" : " ga") +
+    (feat ? " feat" : "") +
+    (home ? " home" : "");
+  const open = (form?: string) => {
+    if (form) setPendingAnchor("f-" + form);
+    void nav({ to: "/atlas/$druh", params: { druh: slug(sp) } });
+  };
   return (
-    <article className={`box rec${cls}`}>
+    <article
+      className={`box rec rec-click${cls}`}
+      onClick={(e) => {
+        // the whole card opens the plant; buttons and links inside keep their own action
+        if ((e.target as HTMLElement).closest("button, a, input, select, summary")) return;
+        open();
+      }}
+    >
       {home ? <div className="home-badge">🏠 Máte doma</div> : null}
-      {feat ? <div className="eyebrow">Nejsilnější doporučení</div> : null}
+      {cover ? (
+        <div className="eyebrow cover">{cover}</div>
+      ) : feat ? (
+        <div className="eyebrow">Nejsilnější doporučení</div>
+      ) : null}
       <div className="top rec-top">
-        <Who s={s} picLink extra={<Pill g={g} />} after={<FavButton k={sp} />} />
-        <FormIcons s={s} />
+        <Who s={s} picLink extra={<Pill g={g} />} />
+        <FormIcons s={s} onPick={(f) => open(f)} />
       </div>
+      <MineButtons k={sp} sm />
       <FitChips sp={sp} labels={labels} />
       {hit.map((x, i) => (
         <WarnAlert key={i} w={x} />
@@ -123,8 +149,8 @@ function RecCard({
             .concat(w.filter((x) => x.f == "*").slice(0, 1))
             .map((x, i) => <WarnAlert key={i} w={x} />)}
       <div className="rec-actions">
-        <SpeciesLink k={sp} className="btn ghost">
-          Více o této {kat(s)[1]}
+        <SpeciesLink k={sp} className="btn more-btn">
+          Více o této {kat(s)[1]} →
         </SpeciesLink>
       </div>
     </article>
@@ -132,7 +158,7 @@ function RecCard({
 }
 
 export function Poradce() {
-  const { ui, setUI, prof, doma } = useApp();
+  const { ui, setUI, prof, doma, toggleProf } = useApp();
   const [draft, setDraft] = useState(ui.q);
   useEffect(() => setDraft(ui.q), [ui.q]);
 
@@ -140,7 +166,14 @@ export function Poradce() {
     ui.pf == "vse" || s.kat == ui.pf || (ui.pf == "houba" && s.k == "houby");
   const labels = selLabels(ui);
 
-  const card = (key: string, sp: string, g: Grade, b: Study | undefined, feat = false): Item => ({
+  const card = (
+    key: string,
+    sp: string,
+    g: Grade,
+    b: Study | undefined,
+    feat = false,
+    cover?: string,
+  ): Item => ({
     key,
     art: true,
     el: (
@@ -152,6 +185,7 @@ export function Poradce() {
         labels={labels}
         prof={prof}
         home={doma.includes(sp)}
+        cover={cover}
       />
     ),
   });
@@ -180,15 +214,21 @@ export function Poradce() {
         ),
       });
     else {
-      // herbs the user has at home ("Co mám doma") go first, the strongest of the rest is featured
-      const home = ok.filter((r) => doma.includes(r[0])).slice(0, 3);
-      const rest = ok.filter((r) => !home.includes(r));
-      for (const r of home) out.push(card(prefix + "h" + r[0], r[0], r[1], bfn(r[0])));
-      const first = rest[0];
+      // strongest evidence first; within the same strength, herbs the user has at home go first
+      const sorted = ok
+        .map((r, i) => ({ r, i }))
+        .sort(
+          (a, b) =>
+            GRANK[a.r[1]] - GRANK[b.r[1]] ||
+            Number(doma.includes(b.r[0])) - Number(doma.includes(a.r[0])) ||
+            a.i - b.i,
+        )
+        .map((x) => x.r);
+      const first = sorted[0];
       if (first) out.push(card(prefix + "f" + first[0], first[0], first[1], bfn(first[0]), true));
-      if (rest.length > 1) {
+      if (sorted.length > 1) {
         out.push({ key: prefix + "more", el: <h3>Další možnosti</h3> });
-        for (const r of rest.slice(1, 5))
+        for (const r of sorted.slice(1, 6))
           out.push(card(prefix + "o" + r[0], r[0], r[1], bfn(r[0])));
       }
     }
@@ -330,10 +370,8 @@ export function Poradce() {
           </div>
         ),
       });
-    // general advice and "see a doctor" right after the first recommended species
-    const i = h.findIndex((x) => x.art);
-    if (i >= 0) h.splice(i + 1, 0, cond);
-    else h.push(cond);
+    // general advice ("avoid triggers…") and "see a doctor" come after the herbs
+    h.push(cond);
     return h;
   }
 
@@ -405,7 +443,7 @@ export function Poradce() {
           placeholder="Např. mám atopický ekzém a špatně spím, nebo: bolí mě v krku a kašlu"
           aria-label="Popište, co vás trápí"
         />
-        <button className="btn">Poradit</button>
+        <button className="btn">Vyhledat</button>
       </form>
       <div className="chips">
         {topShown.map((t) => (
@@ -460,7 +498,6 @@ export function Poradce() {
     return (
       <>
         {ask}
-        {ui.q.trim() ? null : <Lekarnik />}
         {ui.q.trim() ? (
           <div className="box">
             <p>
@@ -482,11 +519,43 @@ export function Poradce() {
             </p>
           </div>
         )}
-        {ui.q.trim() ? <Lekarnik /> : null}
       </>
     );
 
   const items = [...ui.nem.flatMap(nemBlock), ...tps.flatMap(topicBlock)];
+
+  // With several complaints: the herb that covers all (or most) of them goes first.
+  let coverItem: Item | null = null;
+  if (labels.length >= 2) {
+    const c = D.species
+      .filter(inPool)
+      .filter((x) => !blocked(x.k, prof))
+      .map((x) => {
+        const gs = labels.map((l) => l.g(x.k));
+        const yes = gs.filter((g): g is Grade => isHumanGrade(g));
+        return {
+          k: x.k,
+          n: yes.length,
+          str: yes.reduce((a, g) => a + 4 - GRANK[g], 0),
+          home: doma.includes(x.k),
+          g: [...yes].sort((a, b) => GRANK[a] - GRANK[b])[0],
+          lab: labels.find((l) => isHumanGrade(l.g(x.k))),
+        };
+      })
+      .filter((x) => x.n >= 2 && x.g)
+      .sort((a, b) => b.n - a.n || b.str - a.str || Number(b.home) - Number(a.home))[0];
+    if (c && c.g && c.lab) {
+      const id = c.lab.id;
+      const st = id.startsWith("n:") ? bestOf(nstudies(c.k, id.slice(2))) : best(c.k, id.slice(2));
+      const txt =
+        c.n == labels.length
+          ? "Pomáhá na všechny vybrané potíže"
+          : `Pomáhá na ${c.n} z ${labels.length} vybraných potíží`;
+      coverItem = card("cover" + c.k, c.k, c.g, st, false, txt);
+    }
+  }
+  const potize = [...ui.nem.map((k) => "n:" + k), ...ui.picked.map((k) => "t:" + k)];
+  const saved = potize.length > 0 && potize.every((f) => prof.has(f));
 
   return (
     <>
@@ -520,29 +589,34 @@ export function Poradce() {
           ))}
         </div>
       ) : null}
-      <div className="seg">
-        {ui.showPf ? (
-          <>
-            <span className="note">Hledat mezi:</span>
-            {PF.map((x) => (
-              <button
-                key={x[0]}
-                type="button"
-                className="chip sm"
-                aria-pressed={ui.pf == x[0]}
-                onClick={() => setUI({ pf: x[0] })}
-              >
-                {x[1]}
-              </button>
-            ))}
-          </>
-        ) : (
-          <button type="button" className="chip sm" onClick={() => setUI({ showPf: true })}>
-            Hledat mezi: {PF.find((x) => x[0] == ui.pf)?.[1]} ▾
+      <div className="seg seg-row">
+        <span className="note">Hledat mezi:</span>
+        {PF.map((x) => (
+          <button
+            key={x[0]}
+            type="button"
+            className="chip sm"
+            aria-pressed={ui.pf == x[0]}
+            onClick={() => setUI({ pf: x[0] })}
+          >
+            {x[1]}
           </button>
-        )}
+        ))}
       </div>
+      {potize.length ? (
+        <div>
+          <button
+            type="button"
+            className="chip sm"
+            aria-pressed={saved}
+            onClick={() => potize.forEach((f) => toggleProf(f, !saved))}
+          >
+            {saved ? "✓ Uloženo v profilu" : "💾 Uložit potíže do profilu"}
+          </button>
+        </div>
+      ) : null}
       <GeneralAlerts />
+      {coverItem ? coverItem.el : null}
       {items.map((x) => (
         <Fragment key={x.key}>{x.el}</Fragment>
       ))}
@@ -553,7 +627,6 @@ export function Poradce() {
           krev či neúmyslné hubnutí.
         </p>
       </div>
-      <Lekarnik />
     </>
   );
 }

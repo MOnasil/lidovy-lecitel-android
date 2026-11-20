@@ -199,3 +199,48 @@ export function LekyBox() {
     </>
   );
 }
+
+/** Overview of herbs that may clash with the chosen medicines (signed in only). */
+export function StretyBox() {
+  const { account, meds } = useApp();
+  if (!account) return null;
+  const hits = interactions(meds);
+  return (
+    <>
+      {meds.length ? (
+        <section className="box">
+          <h3>Možné střety s vašimi léky</h3>
+          {hits.map(({ med, items }) => (
+            <details key={med.k}>
+              <summary>
+                {med.n}:{" "}
+                {items.length
+                  ? `${items.length} ${items.length == 1 ? "bylina" : items.length < 5 ? "byliny" : "bylin"}`
+                  : "žádný známý střet"}
+              </summary>
+              {items.length ? (
+                <ul className="ints">
+                  {items.map((x) => (
+                    <li key={x.k}>
+                      <SpeciesLink k={x.k}>{SP[x.k]!.cz}</SpeciesLink> –{" "}
+                      <span className="note">{x.t}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="note">
+                  V našich datech jsme nenašli žádnou bylinu, která by s tímto lékem měla známý
+                  střet. To ale neznamená, že žádný neexistuje.
+                </p>
+              )}
+            </details>
+          ))}
+          <p className="note">
+            Přehled vychází z upozornění u jednotlivých bylin a není úplný. Před užitím bylin se
+            vždy poraďte s lékárníkem nebo lékařem.
+          </p>
+        </section>
+      ) : null}
+    </>
+  );
+}

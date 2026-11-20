@@ -70,8 +70,8 @@ const ABS_RULES: { t: string; d: string; rel?: string[] }[] = [
 ];
 
 function AbsGeneral() {
-  const { prof, doma, favs } = useApp();
-  const mine = [...new Set([...doma, ...favs])].filter((k) => SP[k] && ABSORB[k]);
+  const { prof, doma } = useApp();
+  const mine = doma.filter((k) => SP[k] && ABSORB[k]);
   const rules = [
     ...ABS_RULES.slice(0, 1).map((r) => ({ ...r, mine: false })),
     ...D.absg.map((g) => ({ t: g[0], d: g[1], mine: false })),
@@ -130,10 +130,15 @@ function ProfHint() {
   );
 }
 
+/** How many "Co nekombinovat" groups are shown before "Zobrazit další". */
+const IX_FIRST = 8;
+
 function Interakce() {
   const { prof } = useApp();
+  const [more, setMore] = useState(false);
   const studies = useMemo(() => guideStudies(), []);
-  const groups = orderedGuide(prof);
+  const ordered = orderedGuide(prof);
+  const groups = more ? ordered : ordered.slice(0, IX_FIRST);
   const rest = GUIDE_REST.map((r) => ({
     ...r,
     it: studies["rest:" + r.g] ?? [],
@@ -197,8 +202,15 @@ function Interakce() {
           </details>
         );
       })}
-      {rest.length ? <h3 className="mt-4">Další studie podle témat</h3> : null}
-      {rest.map((r) => (
+      {!more ? (
+        <div className="more-row">
+          <button type="button" className="btn ghost" onClick={() => setMore(true)}>
+            Zobrazit další ({ordered.length - IX_FIRST + rest.length})
+          </button>
+        </div>
+      ) : null}
+      {more && rest.length ? <h3 className="mt-4">Další studie podle témat</h3> : null}
+      {(more ? rest : []).map((r) => (
         <details key={r.g} className={`dtx${r.mine ? " mine" : ""}`}>
           <summary>
             {r.g} <span className="note">({r.it.length})</span> {r.mine ? <MineBadge /> : null}
@@ -422,21 +434,23 @@ function Jedovate({ q, bare }: { q: string; bare?: boolean }) {
 export function AtlasExtras() {
   return (
     <>
-      <Sec icon="🚫" title="Co nekombinovat – léky, doplňky, byliny a jídlo" id="interakce">
-        <Interakce />
-      </Sec>
-      <Sec icon="💊" title="Jak zlepšit vstřebávání">
-        <AbsGeneral />
-      </Sec>
-      <Sec icon="🧪" title="Detox – co na to věda">
-        <Detox />
-      </Sec>
       <Sec icon="⚠️" title="Byliny, kterým se raději vyhněte">
         <Avoid q="" bare />
       </Sec>
       <Sec icon="☠️" title="Jedovaté rostliny – poznejte je">
         <Jedovate q="" bare />
       </Sec>
+    </>
+  );
+}
+
+/** "Interakce" tab: what not to combine, how to improve absorption, detox. */
+export function InterakcePage() {
+  return (
+    <>
+      <Interakce />
+      <AbsGeneral />
+      <Detox />
     </>
   );
 }

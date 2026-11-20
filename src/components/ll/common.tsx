@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { D, GL, SP, STL, U, best, grade, hasFlag, slug, type Warn } from "@/lib/ll/data";
 import { drugLabel, pharmacyText, whenHowOften } from "@/lib/ll/display";
+import { scrollToAnchor } from "@/lib/ll/jump";
 import { photo, photoUrl } from "@/lib/ll/photos";
 import { useApp } from "@/lib/ll/store";
 import type { AbsItem, Grade, IxItem, Species, Study, Use } from "@/lib/ll/types";
@@ -156,12 +157,7 @@ export const FICON: Record<string, string> = {
 };
 
 export function gotoForm(id: string) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.scrollIntoView({ behavior: "smooth", block: "center" });
-  el.classList.remove("hl");
-  void el.offsetWidth;
-  el.classList.add("hl");
+  scrollToAnchor(id);
 }
 
 export function FormChips({ s }: { s: Species }) {
@@ -422,53 +418,85 @@ const VYDEJ: Record<string, string> = {
 };
 
 /** "Můj seznam" toggle: signed in → star button; signed out → invitation to sign in; loading → nothing. */
-export function FavButton({ k }: { k: string }) {
-  const { account, favs, toggleFav } = useApp();
-  if (account === undefined) return null;
-  if (!account)
-    return (
-      <Link
-        to="/auth"
-        className="fav-btn"
-        title="Přihlaste se a ukládejte si byliny do svého seznamu"
-      >
-        <span aria-hidden="true">☆</span> Uložit do seznamu
-      </Link>
-    );
-  const on = favs.includes(k);
+/** Round tick toggle used by "Mám doma" and "Chci pěstovat" (empty circle → green circle with a tick). */
+function TickToggle({
+  on,
+  label,
+  title,
+  sm,
+  onToggle,
+}: {
+  on: boolean;
+  label: string;
+  title: string;
+  sm?: boolean | undefined;
+  onToggle: () => void;
+}) {
   return (
     <button
       type="button"
-      className={`fav-btn${on ? " on" : ""}`}
+      className={`tick-btn${on ? " on" : ""}${sm ? " sm" : ""}`}
       aria-pressed={on}
-      onClick={() => toggleFav(k)}
-      title={on ? "Odebrat ze seznamu" : "Uložit do seznamu"}
+      title={title}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onToggle();
+      }}
     >
-      <span aria-hidden="true">{on ? "★" : "☆"}</span> {on ? "V seznamu" : "Uložit do seznamu"}
+      <span className="tick" aria-hidden="true">
+        {on ? "✓" : ""}
+      </span>
+      {label}
     </button>
   );
 }
 
-/** "Mám doma" toggle (browser list, works signed out); the list is shown in Zahrádka. */
-export function DomaButton({ k, sm }: { k: string; sm?: boolean }) {
+/** "Mám doma" toggle (browser list, works signed out); the list is shown in Zahrádka and the profile. */
+export function DomaButton({ k, sm }: { k: string; sm?: boolean | undefined }) {
   const { doma, toggleDoma } = useApp();
   const on = doma.includes(k);
   return (
-    <button
-      type="button"
-      className={`fav-btn doma-btn${on ? " on" : ""}${sm ? " sm" : ""}`}
-      aria-pressed={on}
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        toggleDoma(k);
-      }}
-      title={
-        on ? "Odebrat ze seznamu Mám doma" : "Přidat do seznamu Mám doma (najdete ho v Zahrádce)"
+    <TickToggle
+      on={on}
+      sm={sm}
+      label="Mám doma"
+      title={on ? "Odebrat ze seznamu Mám doma" : "Přidat do seznamu Mám doma"}
+      onToggle={() => toggleDoma(k)}
+    />
+  );
+}
+
+/** "Chci pěstovat" toggle – adds the herb to Zahrádka as "Budu pěstovat"; only for herbs grown here. */
+export function GrowButton({ k, sm }: { k: string; sm?: boolean | undefined }) {
+  const { vys, setVys } = useApp();
+  if (!D.garden[k]) return null;
+  const on = !!vys[k];
+  return (
+    <TickToggle
+      on={on}
+      sm={sm}
+      label="Chci pěstovat"
+      title={on ? "Odebrat ze Zahrádky" : "Přidat do Zahrádky jako Budu pěstovat"}
+      onToggle={() =>
+        setVys((p) => {
+          const n = { ...p };
+          if (n[k]) delete n[k];
+          else n[k] = { stav: "plan", od: new Date().toISOString().slice(0, 10) };
+          return n;
+        })
       }
-    >
-      <span aria-hidden="true">🏠</span> {on ? "Mám doma ✓" : "Mám doma"}
-    </button>
+    />
+  );
+}
+
+/** Both toggles side by side. */
+export function MineButtons({ k, sm }: { k: string; sm?: boolean }) {
+  return (
+    <span className="mine-btns">
+      <DomaButton k={k} sm={sm} />
+      <GrowButton k={k} sm={sm} />
+    </span>
   );
 }
 

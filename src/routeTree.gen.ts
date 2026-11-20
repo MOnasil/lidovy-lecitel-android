@@ -13,6 +13,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as BabskeRouteImport } from './routes/babske'
 import { Route as DomaRouteImport } from './routes/doma'
+import { Route as InterakceRouteImport } from './routes/interakce'
+import { Route as LekarnikRouteImport } from './routes/lekarnik'
 import { Route as ProfilRouteImport } from './routes/profil'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ZahradkaRouteImport } from './routes/zahradka'
@@ -37,6 +39,16 @@ const BabskeRoute = BabskeRouteImport.update({
 const DomaRoute = DomaRouteImport.update({
   id: '/doma',
   path: '/doma',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InterakceRoute = InterakceRouteImport.update({
+  id: '/interakce',
+  path: '/interakce',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LekarnikRoute = LekarnikRouteImport.update({
+  id: '/lekarnik',
+  path: '/lekarnik',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfilRoute = ProfilRouteImport.update({
@@ -70,6 +82,8 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/babske': typeof BabskeRoute
   '/doma': typeof DomaRoute
+  '/interakce': typeof InterakceRoute
+  '/lekarnik': typeof LekarnikRoute
   '/profil': typeof ProfilRoute
   '/reset-password': typeof ResetPasswordRoute
   '/zahradka': typeof ZahradkaRoute
@@ -81,6 +95,8 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/babske': typeof BabskeRoute
   '/doma': typeof DomaRoute
+  '/interakce': typeof InterakceRoute
+  '/lekarnik': typeof LekarnikRoute
   '/profil': typeof ProfilRoute
   '/reset-password': typeof ResetPasswordRoute
   '/zahradka': typeof ZahradkaRoute
@@ -93,6 +109,8 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/babske': typeof BabskeRoute
   '/doma': typeof DomaRoute
+  '/interakce': typeof InterakceRoute
+  '/lekarnik': typeof LekarnikRoute
   '/profil': typeof ProfilRoute
   '/reset-password': typeof ResetPasswordRoute
   '/zahradka': typeof ZahradkaRoute
@@ -106,6 +124,8 @@ export interface FileRouteTypes {
     | '/auth'
     | '/babske'
     | '/doma'
+    | '/interakce'
+    | '/lekarnik'
     | '/profil'
     | '/reset-password'
     | '/zahradka'
@@ -117,6 +137,8 @@ export interface FileRouteTypes {
     | '/auth'
     | '/babske'
     | '/doma'
+    | '/interakce'
+    | '/lekarnik'
     | '/profil'
     | '/reset-password'
     | '/zahradka'
@@ -128,6 +150,8 @@ export interface FileRouteTypes {
     | '/auth'
     | '/babske'
     | '/doma'
+    | '/interakce'
+    | '/lekarnik'
     | '/profil'
     | '/reset-password'
     | '/zahradka'
@@ -140,6 +164,8 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   BabskeRoute: typeof BabskeRoute
   DomaRoute: typeof DomaRoute
+  InterakceRoute: typeof InterakceRoute
+  LekarnikRoute: typeof LekarnikRoute
   ProfilRoute: typeof ProfilRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ZahradkaRoute: typeof ZahradkaRoute
@@ -175,6 +201,20 @@ declare module '@tanstack/react-router' {
       path: '/doma'
       fullPath: '/doma'
       preLoaderRoute: typeof DomaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/interakce': {
+      id: '/interakce'
+      path: '/interakce'
+      fullPath: '/interakce'
+      preLoaderRoute: typeof InterakceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lekarnik': {
+      id: '/lekarnik'
+      path: '/lekarnik'
+      fullPath: '/lekarnik'
+      preLoaderRoute: typeof LekarnikRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profil': {
@@ -220,6 +260,8 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   BabskeRoute: BabskeRoute,
   DomaRoute: DomaRoute,
+  InterakceRoute: InterakceRoute,
+  LekarnikRoute: LekarnikRoute,
   ProfilRoute: ProfilRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ZahradkaRoute: ZahradkaRoute,

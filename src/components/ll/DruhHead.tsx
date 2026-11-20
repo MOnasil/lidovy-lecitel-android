@@ -11,7 +11,8 @@ import {
 } from "@/lib/ll/display";
 import { hasPhoto, photoUrl } from "@/lib/ll/photos";
 import type { Grade, Species } from "@/lib/ll/types";
-import { DomaButton, FBUY, FICON, FavButton, gotoForm } from "./common";
+import { FBUY, FICON, MineButtons, StudyItem, gotoForm } from "./common";
+import { scrollToAnchor } from "@/lib/ll/jump";
 
 /** Background tint of each form icon (light, matches the Poradce chips). */
 const FCOLOR: Record<string, string> = {
@@ -64,7 +65,7 @@ const FABS: Record<string, [number, string]> = {
   zevne: [1, "Působí hlavně v místě použití"],
 };
 
-const TICON: Record<string, string> = {
+export const TICON: Record<string, string> = {
   unava: "⚡",
   stres: "😌",
   spanek: "🌙",
@@ -112,7 +113,7 @@ function HeadPic({ k }: { k: string }) {
   const i = Math.min(img, files.length - 1);
   const big = photoUrl(k, files[i]!)!;
   return (
-    <div className="hd-picw">
+    <div className="hd-picw" data-gallery={JSON.stringify(files.map((f) => photoUrl(k, f)))}>
       <a href={big} data-zoom={big} className="hd-pic">
         <img src={big} alt={s.cz} width={300} height={300} />
         {files.length > 1 ? (
@@ -186,7 +187,16 @@ function HeadFacts({ k }: { k: string }) {
 }
 
 /** Coloured form icons (tea, capsules…): one column up to 3 forms, two columns from 4. */
-export function FormIcons({ s, jump }: { s: Species; jump?: boolean }) {
+export function FormIcons({
+  s,
+  jump,
+  onPick,
+}: {
+  s: Species;
+  jump?: boolean;
+  /** Clicking a form opens something else (e.g. the detail page at that form). */
+  onPick?: (f: string) => void;
+}) {
   if (!s.formy || !s.formy.length) return null;
   const fs = [...s.formy].sort((a, b) => (FABS[b]?.[0] ?? 2) - (FABS[a]?.[0] ?? 2)).slice(0, 6);
   return (
@@ -206,8 +216,17 @@ export function FormIcons({ s, jump }: { s: Species; jump?: boolean }) {
               {FSHORT[f] || D.forms[f]?.[0]}
             </>
           );
-          return jump ? (
-            <button key={f} type="button" className="hd-f" onClick={() => gotoForm("f-" + f)}>
+          return jump || onPick ? (
+            <button
+              key={f}
+              type="button"
+              className="hd-f"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onPick) onPick(f);
+                else gotoForm("f-" + f);
+              }}
+            >
               {inner}
             </button>
           ) : (
@@ -226,6 +245,11 @@ export function HeadCard({ s, extra }: { s: Species; extra?: React.ReactNode }) 
   const u = D.use[s.k];
   return (
     <section className="hd card-l">
+      <h2 className="hd-name">{s.cz}</h2>
+      <div className="hd-sub">
+        <span className="hd-lat">{s.lat}</span>
+        <MineButtons k={s.k} />
+      </div>
       <div className="hd-row">
         {hasPhoto(s.k) ? (
           <div className="hd-picc">
@@ -234,10 +258,6 @@ export function HeadCard({ s, extra }: { s: Species; extra?: React.ReactNode }) 
           </div>
         ) : null}
         <div className="hd-txt">
-          <h2>
-            {s.cz} <FavButton k={s.k} /> <DomaButton k={s.k} />
-          </h2>
-          <div className="hd-lat">{s.lat}</div>
           <p className="hd-desc">{s.popis}</p>
           {s.ln && s.ln.length ? <p className="hd-ln">Lidově: {s.ln.join(", ")}</p> : null}
         </div>
@@ -276,25 +296,43 @@ export function EvidenceCard({ k }: { k: string }) {
               ? `, ${meta} ${plural(meta, "přehledová studie", "přehledové studie", "přehledových studií")}`
               : ""
           }`;
+    const all = studies(k, t.k)
+      .filter((x) => x.d == "p" || x.d == "m")
+      .sort(
+        (a, b) =>
+          Number(HUM.includes(b.st)) - Number(HUM.includes(a.st)) || (b.y ?? 0) - (a.y ?? 0),
+      );
     return (
-      <div key={t.k} className={`ev ${GCLS[g]}`}>
-        <span className="ev-ic" aria-hidden="true">
-          {TICON[t.k] || "🌿"}
-        </span>
-        <div className="ev-t">
-          <b>{t.n}</b>
-          <small>{detail}</small>
-          {dose ? <small className="ev-dose">Ve studiích: {dose}</small> : null}
-        </div>
-        <span className="ev-strength">
-          <span className="ev-dots" aria-hidden="true">
-            {[0, 1, 2].map((i) => (
-              <i key={i} className={i < GDOTS[g] ? "on" : ""} />
-            ))}
+      <details key={t.k} className="ev-d">
+        <summary className={`ev ${GCLS[g]}`}>
+          <span className="ev-ic" aria-hidden="true">
+            {TICON[t.k] || "🌿"}
           </span>
-          <span className="ev-word">{GWORD[g]}</span>
-        </span>
-      </div>
+          <div className="ev-t">
+            <b>{t.n}</b>
+            <small>{detail}</small>
+            {dose ? <small className="ev-dose">Ve studiích: {dose}</small> : null}
+          </div>
+          <span className="ev-strength">
+            <span className="ev-dots" aria-hidden="true">
+              {[0, 1, 2].map((i) => (
+                <i key={i} className={i < GDOTS[g] ? "on" : ""} />
+              ))}
+            </span>
+            <span className="ev-word">{GWORD[g]}</span>
+          </span>
+        </summary>
+        <div className="ev-src">
+          {all.length ? (
+            all.slice(0, 25).map((x) => <StudyItem key={x.i} s={x} />)
+          ) : (
+            <p className="note">Zdroje k tomuto účinku zatím nemáme.</p>
+          )}
+          {all.length > 25 ? (
+            <p className="note">a dalších {all.length - 25} ve Studiích níže</p>
+          ) : null}
+        </div>
+      </details>
     );
   };
   return (
@@ -319,7 +357,46 @@ export function EvidenceCard({ k }: { k: string }) {
   );
 }
 
-/** Two 12-month rows – when to sow and when to harvest – shown only for herbs that can be grown in Czechia. */
+/** One 12-month bar: sowing and harvest in two colours, a diagonal split when both fall in one month. */
+export function MonthBar({ sow, harvest }: { sow: number[]; harvest: number[] }) {
+  return (
+    <div className="mbar" role="img" aria-label="Kalendář setí a sklizně">
+      {MONTHS.map((n, i) => {
+        const v = sow.includes(i + 1);
+        const h = harvest.includes(i + 1);
+        return (
+          <span key={n} className={v && h ? "b" : v ? "v" : h ? "s" : ""} title={MON_NAMES[i]}>
+            {n}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+const MON_NAMES = [
+  "leden",
+  "únor",
+  "březen",
+  "duben",
+  "květen",
+  "červen",
+  "červenec",
+  "srpen",
+  "září",
+  "říjen",
+  "listopad",
+  "prosinec",
+];
+
+export function MonthLegend() {
+  return (
+    <p className="mleg">
+      <i className="v" /> zasít &nbsp; <i className="s" /> sklízet &nbsp; <i className="b" /> obojí
+    </p>
+  );
+}
+
+/** When to sow and harvest in one row – shown only for herbs that can be grown in Czechia. */
 export function MonthCard({ k }: { k: string; fungus?: boolean }) {
   const g = D.garden[k];
   const gi = growInfo(k);
@@ -327,23 +404,11 @@ export function MonthCard({ k }: { k: string; fungus?: boolean }) {
   const sow = g[4];
   const harvest = g[5].length ? g[5] : D.months[k] || [];
   if (!sow.length && !harvest.length) return null;
-  const row = (label: string, ms: number[], cls: string) => (
-    <div className="mrow">
-      <span className="mrow-l">{label}</span>
-      <div className="mbar">
-        {MONTHS.map((n, i) => (
-          <span key={n} className={ms.includes(i + 1) ? cls : ""}>
-            {n}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
   return (
     <section className="card-l">
       <h3 className="cl-h">Kdy zasít a kdy sklízet</h3>
-      {sow.length ? row("Zasít", sow, "v") : null}
-      {harvest.length ? row("Sklízet", harvest, "s") : null}
+      <MonthBar sow={sow} harvest={harvest} />
+      <MonthLegend />
       {g[6] ? <p className="mleg">Sklízí se: {g[6]}</p> : null}
     </section>
   );
@@ -375,7 +440,7 @@ export function FactTiles({ k, w, risks }: { k: string; w: Warn[]; risks: number
         </section>
       ) : null}
       {nWarn ? (
-        <a href="#pozor" className="card-l warn-tile">
+        <button type="button" className="card-l warn-tile" onClick={() => scrollToAnchor("pozor")}>
           <span aria-hidden="true">⚠️</span>
           <span>
             <b>Pozor ({nWarn})</b>
@@ -386,7 +451,7 @@ export function FactTiles({ k, w, risks }: { k: string; w: Warn[]; risks: number
                 .join(" · ") || "Rizika popsaná ve studiích"}
             </small>
           </span>
-        </a>
+        </button>
       ) : null}
     </>
   );
@@ -500,6 +565,7 @@ export function Sec({
   n,
   id,
   open,
+  warn,
   children,
 }: {
   icon: string;
@@ -507,10 +573,12 @@ export function Sec({
   n?: number;
   id?: string;
   open?: boolean;
+  /** red heading (warnings) */
+  warn?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <details className="sec" id={id} open={open}>
+    <details className={`sec${warn ? " sec-warn" : ""}`} id={id} open={open}>
       <summary>
         <span aria-hidden="true">{icon}</span>
         <span className="sec-t">{title}</span>

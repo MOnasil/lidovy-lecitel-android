@@ -5,6 +5,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { RouterProvider, createHashHistory, createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
 import { listenForAuthLinks } from "./native/deepLinks";
+import { setupOwnAvatar } from "./native/avatar";
 
 const queryClient = new QueryClient();
 const router = createRouter({
@@ -22,6 +23,7 @@ declare module "@tanstack/react-router" {
 }
 
 listenForAuthLinks((to) => void router.navigate({ to: to as "/" }));
+setupOwnAvatar();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
