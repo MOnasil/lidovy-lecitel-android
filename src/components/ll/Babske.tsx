@@ -1,38 +1,26 @@
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { CONDS, D, FLAGS, SP, interactions, norm, warns } from "@/lib/ll/data";
+import { CONDS, D, FLAGS, SP, norm } from "@/lib/ll/data";
 import { MED } from "@/lib/ll/meds";
 import { ABSORB, ABSV_CLS } from "@/lib/ll/absorb";
-import { GUIDE, GUIDE_REST, RULE_T, guideStudies, orderedGuide, relevant } from "@/lib/ll/ixguide";
+import {
+  GUIDE,
+  GUIDE_REST,
+  RULE_T,
+  groupSev,
+  guideStudies,
+  orderedGuide,
+  relevant,
+} from "@/lib/ll/ixguide";
 import { photoUrl } from "@/lib/ll/photos";
 import { useApp } from "@/lib/ll/store";
+import { myRisks, type Risk } from "@/lib/ll/risks";
+import { isKnownPlain } from "@/lib/ll/medsSukl";
+import { potizeOf } from "@/lib/ll/doporuceni";
 import { ZdraviLeky, ownMeds } from "./Profil";
 import { Sec } from "./DruhHead";
-import { AbsList, IxBadge, IxList, IX_T, SpeciesLink, UseItem, Who, cap1, verdict } from "./common";
+import { AbsList, IxBadge, IxList, IX_T, SpeciesLink, cap1 } from "./common";
 
-const ORDER: Record<string, number> = { gS: -1, gA: 0, gB: 1, gM: 2, gN: 3 };
-const BV: Record<string, string[] | null> = {
-  vse: null,
-  silne: ["gS"],
-  ano: ["gS", "gA", "gB"],
-  lab: ["gM"],
-  ne: ["gN"],
-};
-const CATS: [string, string][] = [
-  ["vse", "Vše"],
-  ["bylina", "Byliny z ČR"],
-  ["houba", "Houby"],
-  ["exot", "Dovážené"],
-  ["vcela", "Včelí produkty"],
-  ["potr", "Potraviny"],
-];
-const VERD: [string, string][] = [
-  ["vse", "Vše"],
-  ["silne", "✓✓ Doloženo mnoha studiemi"],
-  ["ano", "✓ Potvrzeno studiemi na lidech"],
-  ["lab", "Jen laboratoř a zvířata"],
-  ["ne", "✗ Nepotvrzeno"],
-];
 const DETOX_LABELS: Record<string, string> = {
   clinical_trial: "studie na lidech",
   meta_analysis: "přehledová studie",
@@ -156,11 +144,20 @@ function Interakce() {
       {groups.map(({ g, mine }) => {
         const st = studies[g.k] ?? [];
         const food = g.k == "jidlo" ? D.food : [];
+        const sev = mine ? groupSev(g) : null;
         return (
-          <details key={g.k} className={`dtx ixg${mine ? " mine" : ""}`} open={mine || undefined}>
+          <details
+            key={g.k}
+            className={`dtx ixg${mine ? " mine" : ""}${sev ? " sev-" + sev : ""}`}
+            open={mine || undefined}
+          >
             <summary>
               <span aria-hidden="true">{g.icon}</span> <b>{g.title}</b>{" "}
-              {mine ? <MineBadge /> : null}
+              {mine ? (
+                <span className={`mine-badge sev-${sev ?? "y"}`}>
+                  {sev == "r" ? "🔴 týká se vás – závažné" : "🟡 týká se vás"}
+                </span>
+              ) : null}
               {g.ex ? <span className="note ixg-ex">např. {g.ex}</span> : null}
             </summary>
             {g.note ? <p className="note">{g.note}</p> : null}
@@ -303,73 +300,12 @@ function Detox() {
   );
 }
 
-/** Herbs and mushrooms whose warnings concern the user's conditions, allergies or medicines. */
-function AvoidMine() {
-  const { prof } = useApp();
-  const [all, setAll] = useState(false);
-  const list = useMemo(
-    () =>
-      profFilled(prof)
-        ? D.species
-            .filter((s) => s.k != "houby")
-            .map((s) => ({ s, w: warns(s.k, prof).filter((x) => x.hit) }))
-            .filter((x) => x.w.length)
-            .sort((a, b) => a.s.cz.localeCompare(b.s.cz, "cs"))
-        : [],
-    [prof],
-  );
-  if (!profFilled(prof))
-    return (
-      <div className="use">
-        <b>Pro vás podle profilu</b>
-        <p className="mt-1">
-          <Link to="/profil">Vyplňte v profilu</Link> nemoci, alergie a léky a ukážeme byliny a
-          houby, kterým se máte vyhnout.
-        </p>
-      </div>
-    );
-  const shown = all ? list : list.slice(0, 12);
-  return (
-    <div className="use mine">
-      <b>Pro vás podle profilu</b> <MineBadge />
-      {!list.length ? (
-        <p className="mt-1">
-          Podle vašeho profilu jsme nenašli žádnou bylinu, které se máte vyhnout.
-        </p>
-      ) : (
-        <>
-          <ul className="ix-list">
-            {shown.map(({ s, w }) => (
-              <li key={s.k}>
-                <SpeciesLink k={s.k}>
-                  <b>{s.cz.split(" (")[0]}</b>
-                </SpeciesLink>
-                <div>
-                  {w[0]!.meds?.length ? `Užíváte ${w[0]!.meds.join(", ")}: ` : ""}
-                  {w[0]!.t}
-                </div>
-              </li>
-            ))}
-          </ul>
-          {list.length > shown.length ? (
-            <button type="button" className="chip sm" onClick={() => setAll(true)}>
-              Zobrazit všech {list.length}
-            </button>
-          ) : null}
-        </>
-      )}
-    </div>
-  );
-}
-
 function Avoid({ q, bare }: { q: string; bare?: boolean }) {
   const av = D.avoid.filter((a) => !q || norm(a.cz + " " + a.lat).includes(q));
   if (!av.length) return null;
   return (
     <section className={bare ? undefined : "box"}>
       {bare ? null : <h2>Byliny, kterým se raději vyhněte</h2>}
-      {bare ? <AvoidMine /> : null}
-      {bare ? <h3 className="mt-4">Pro všechny</h3> : null}
       <p className="note">
         Tradičně se používaly, ale podle databáze LiverTox (NIH) mohou poškodit játra.
       </p>
@@ -446,115 +382,177 @@ export function AtlasExtras() {
   );
 }
 
-/** Herb names as links, comma separated. */
-function HerbLinks({ ks }: { ks: string[] }) {
+/** Top of "Interakce": the user's medicines and conditions, each with what not to combine. */
+/** Herb/mushroom tiles, four in a row: photo, name, severity and why. */
+export function RiskTiles({ list, first = 8 }: { list: Risk[]; first?: number }) {
+  const [all, setAll] = useState(false);
+  const [why, setWhy] = useState<string | null>(null);
+  const shown = all ? list : list.slice(0, first);
+  const open = why ? list.find((r) => r.k == why) : null;
   return (
     <>
-      {ks.map((k, i) => (
-        <span key={k}>
-          {i ? ", " : ""}
-          <SpeciesLink k={k}>{SP[k]!.cz.split(" (")[0]}</SpeciesLink>
-        </span>
-      ))}
+      <div className="rtiles">
+        {shown.map((r) => (
+          <div key={r.k} className={`rtile sev-${r.sev}`}>
+            <SpeciesLink k={r.k} className="rtile-l">
+              {photoUrl(r.k, "t") ? (
+                <img src={photoUrl(r.k, "t")!} alt="" loading="lazy" />
+              ) : (
+                <span className="rtile-ph" aria-hidden="true">
+                  🌿
+                </span>
+              )}
+              <b>{SP[r.k]!.cz.split(" (")[0]}</b>
+            </SpeciesLink>
+            <button
+              type="button"
+              className={`rtile-b sev-${r.sev}`}
+              aria-expanded={why == r.k}
+              onClick={() => setWhy(why == r.k ? null : r.k)}
+            >
+              {r.sev == "r" ? "nekombinovat" : "opatrně"} ⓘ
+            </button>
+          </div>
+        ))}
+      </div>
+      {open ? (
+        <p className={`ix-explain rt-why sev-${open.sev}`}>
+          <b>{SP[open.k]!.cz.split(" (")[0]}</b>
+          {open.why ? ` (${open.why})` : ""}: {open.t}
+        </p>
+      ) : null}
+      {list.length > shown.length ? (
+        <div className="more-row">
+          <button type="button" className="chip sm" onClick={() => setAll(true)}>
+            Zobrazit další ({list.length - shown.length})
+          </button>
+        </div>
+      ) : null}
     </>
   );
 }
 
-/** Top of "Interakce": the user's medicines and conditions, each with what not to combine. */
-function MojeInterakce() {
+/** Read-only overview of what the profile holds, with a way to edit it. */
+function ProfilChips() {
   const { prof, meds, medsOther } = useApp();
   const own = ownMeds(medsOther);
+  const medN = meds.map((k) => MED[k]?.n).filter((x): x is string => !!x);
   const conds = [
     ...FLAGS.map(([k, n]) => ({ k, n })),
     ...CONDS.map((c) => ({ k: c.k, n: c.n })),
   ].filter((c) => prof.has(c.k) && c.k != "leky");
-  const medHits = useMemo(() => interactions(meds), [meds]);
-  const empty = !meds.length && !conds.length && !own.length;
+  const pot = potizeOf(prof);
+  const short = (n: string) => {
+    const x = n.split(" (")[0]!;
+    return x.length > 34 ? x.slice(0, 32) + "…" : x;
+  };
+  return (
+    <div className="pchips">
+      {medN.length || own.length ? (
+        <p>
+          <span className="pchips-h">💊 Léky</span>
+          {[...medN, ...own].map((n) => (
+            <span key={n} className="chip sm static">
+              {n}
+            </span>
+          ))}
+        </p>
+      ) : null}
+      {conds.length ? (
+        <p>
+          <span className="pchips-h">🩺 Nemoci a stavy</span>
+          {conds.map((c) => (
+            <span key={c.k} className="chip sm static">
+              {short(c.n)}
+            </span>
+          ))}
+        </p>
+      ) : null}
+      {pot.length ? (
+        <p>
+          <span className="pchips-h">😣 Co mě trápí</span>
+          {pot.map((p) => (
+            <span key={p.id} className="chip sm static">
+              {p.n}
+            </span>
+          ))}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function MojeInterakce() {
+  const { prof, meds, medsOther } = useApp();
+  const [add, setAdd] = useState(false);
+  const own = ownMeds(medsOther);
+  const hasCond = [...FLAGS.map(([k]) => k), ...CONDS.map((c) => c.k)].some(
+    (k) => k != "leky" && prof.has(k),
+  );
+  const risks = useMemo(() => myRisks(prof), [prof]);
+  const empty = !meds.length && !hasCond && !own.length;
+  if (empty) return <ZdraviLeky title="Jaké léky užíváte nebo co vás trápí?" compact />;
   return (
     <>
-      <ZdraviLeky
-        title={empty ? "Jaké léky užíváte nebo co vás trápí?" : "Vaše léky a zdraví"}
-        compact
-      />
-      {medHits.map(({ med, items }) => {
+      <section className="box">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2>Moje léky a zdraví</h2>
+          <span className="row-btns">
+            <button type="button" className="chip sm" onClick={() => setAdd((v) => !v)}>
+              {add ? "Hotovo" : "➕ Přidat"}
+            </button>
+            <Link to="/profil" className="chip sm">
+              Upravit v profilu
+            </Link>
+          </span>
+        </div>
+        <ProfilChips />
+        {add ? <ZdraviLeky title="" compact /> : null}
+      </section>
+      <section className="box ix-box">
+        <h2>⚠️ Pozor pro vás</h2>
+        {risks.length ? (
+          <>
+            <p className="note">
+              Byliny a houby, které se podle studií a příbalových informací nesnesou s vašimi léky
+              nebo nemocemi. Klepněte na štítek pro vysvětlení.
+            </p>
+            <RiskTiles list={risks} />
+          </>
+        ) : (
+          <p className="note">Podle vašeho profilu jsme nenašli žádný střet s bylinami.</p>
+        )}
+      </section>
+      {meds.map((mk) => {
+        const med = MED[mk];
+        if (!med) return null;
         const rules = GUIDE.filter(
           (g) => g.rel.includes(med.k) || g.rel.some((r) => MED[r]?.k == med.k),
-        );
+        )
+          .flatMap((g) => g.rules)
+          .filter((r) => !r.sp?.length);
+        if (!rules.length) return null;
         return (
-          <section key={med.k} className="box ix-box">
-            <h3>💊 {med.n}</h3>
-            {items.length ? (
-              <>
-                <h4 className="fgrp">Byliny a houby – nekombinovat nebo opatrně</h4>
-                <ul className="ix-list">
-                  {items.slice(0, 12).map((x) => (
-                    <li key={x.k}>
-                      <SpeciesLink k={x.k}>
-                        <b>{SP[x.k]!.cz.split(" (")[0]}</b>
-                      </SpeciesLink>
-                      <div>{x.t}</div>
-                    </li>
-                  ))}
-                </ul>
-                {items.length > 12 ? <p className="note">a dalších {items.length - 12}</p> : null}
-              </>
-            ) : (
-              <p className="note">K tomuto léku jsme nenašli střet s bylinami v aplikaci.</p>
-            )}
-            {rules
-              .flatMap((g) => g.rules)
-              .filter((r) => !r.sp?.length || !r.sp.every((k) => items.some((i) => i.k == k)))
-              .length ? (
-              <>
-                <h4 className="fgrp">Jídlo, pití a doplňky</h4>
-                <ul className="ix-list">
-                  {rules
-                    .flatMap((g) => g.rules)
-                    .filter((r) => !r.sp?.length || !r.sp.every((k) => items.some((i) => i.k == k)))
-                    .map((r) => (
-                      <li key={r.co}>
-                        <IxBadge label={RULE_T[r.t][0]} cls={RULE_T[r.t][1]} />
-                        <b className="ix-p">{r.co}</b>
-                        <div>{r.proc}</div>
-                      </li>
-                    ))}
-                </ul>
-              </>
-            ) : null}
+          <section key={med.k} className="box">
+            <h3>💊 {med.n}: jídlo, pití a doplňky</h3>
+            <ul className="ix-list">
+              {rules.map((r) => (
+                <li key={r.co}>
+                  <IxBadge label={RULE_T[r.t][0]} cls={RULE_T[r.t][1]} />
+                  <b className="ix-p">{r.co}</b>
+                  <div>{r.proc}</div>
+                </li>
+              ))}
+            </ul>
           </section>
         );
       })}
-      {own.map((t) => (
-        <section key={t} className="box">
-          <h3>💊 {t}</h3>
-          <p className="note">
-            Tento lék aplikace nezná, střety s bylinami proto nehlídáme. Zeptejte se lékárníka.
-          </p>
-        </section>
-      ))}
-      {conds.map((c) => {
-        const only = new Set([c.k]);
-        const ks = D.species
-          .filter((x) => x.k != "houby" && warns(x.k, only).some((w) => w.hit))
-          .map((x) => x.k)
-          .sort((a, b) => SP[a]!.cz.localeCompare(SP[b]!.cz, "cs"));
-        return (
-          <section key={c.k} className="box ix-box">
-            <h3>🩺 {c.n.length > 70 ? c.n.slice(0, 68) + "…" : c.n}</h3>
-            {ks.length ? (
-              <>
-                <h4 className="fgrp">Byliny a houby, kterým se raději vyhněte</h4>
-                <p>
-                  <HerbLinks ks={ks.slice(0, 20)} />
-                  {ks.length > 20 ? ` a dalších ${ks.length - 20}` : ""}
-                </p>
-              </>
-            ) : (
-              <p className="note">K tomu jsme nenašli byliny, kterým se vyhnout.</p>
-            )}
-          </section>
-        );
-      })}
+      {own.filter((t) => !isKnownPlain(t)).length ? (
+        <p className="note box-note">
+          💊 {own.filter((t) => !isKnownPlain(t)).join(", ")}: tyto léky aplikace nezná, střety s
+          bylinami u nich nehlídáme. Zeptejte se lékárníka.
+        </p>
+      ) : null}
     </>
   );
 }
@@ -565,111 +563,8 @@ export function InterakcePage() {
     <>
       <MojeInterakce />
       <Interakce />
-      <AbsGeneral />
       <Detox />
-    </>
-  );
-}
-
-export function Babske() {
-  const { ui, setUI } = useApp();
-  const f = ui.bf;
-  const q = norm(ui.bs);
-  const bv = BV[ui.bv] ?? null;
-  const groups: Record<string, [string, string, string, string][]> = {};
-  for (const t of D.trad) {
-    const s = SP[t[0]];
-    if (!s || (f != "vse" && s.kat != f)) continue;
-    if (bv && !bv.includes(verdict(t[0], t[2])[0])) continue;
-    if (
-      q &&
-      !norm(s.cz + " " + s.lat + " " + (s.ln || []).join(" ") + " " + t[1] + " " + t[3]).includes(q)
-    )
-      continue;
-    (groups[t[0]] ?? (groups[t[0]] = [])).push(t);
-  }
-  const minOrder = (k: string) =>
-    Math.min(...groups[k]!.map((t) => ORDER[verdict(t[0], t[2])[0]]!));
-  const keys = Object.keys(groups).sort(
-    (a, b) => minOrder(a) - minOrder(b) || SP[a]!.cz.localeCompare(SP[b]!.cz, "cs"),
-  );
-
-  return (
-    <>
-      <section className="box">
-        <h2>Babské léčitelství</h2>
-        <p>Co používaly naše babičky a lidoví léčitelé – a co na to říká dnešní věda.</p>
-        <div className="ask">
-          <input
-            value={ui.bs}
-            onChange={(e) => setUI({ bs: e.target.value })}
-            placeholder="Hledat rostlinu nebo potíž, např. heřmánek, kašel"
-            aria-label="Hledat v babských radách"
-          />
-        </div>
-        <div className="chips">
-          {CATS.map((x) => (
-            <button
-              key={x[0]}
-              type="button"
-              className="chip"
-              aria-pressed={f == x[0]}
-              onClick={() => setUI({ bf: x[0] })}
-            >
-              {x[1]}
-            </button>
-          ))}
-        </div>
-        <div className="seg">
-          <span className="note">Co na to věda:</span>
-          {VERD.map((x) => (
-            <button
-              key={x[0]}
-              type="button"
-              className="chip sm"
-              aria-pressed={ui.bv == x[0]}
-              onClick={() => setUI({ bv: x[0] })}
-            >
-              {x[1]}
-            </button>
-          ))}
-        </div>
-        <p className="note">{keys.length} rostlin</p>
-      </section>
-      {!q && f == "vse" && ui.bv == "vse" ? (
-        <>
-          <AbsGeneral />
-          <Interakce />
-          <Detox />
-        </>
-      ) : null}
-      {keys.map((k) => {
-        const s = SP[k]!;
-        const ts = [...groups[k]!].sort(
-          (a, b) => ORDER[verdict(a[0], a[2])[0]]! - ORDER[verdict(b[0], b[2])[0]]!,
-        );
-        return (
-          <article key={k} className="box">
-            <Who s={s} />
-            <div className="uses">
-              {ts.map((t, i) => (
-                <UseItem key={i} t={t} />
-              ))}
-            </div>
-          </article>
-        );
-      })}
-      {!keys.length ? (
-        <div className="box">
-          <p>Nic nenalezeno.</p>
-        </div>
-      ) : null}
-      {f == "vse" || f == "bylina" ? (
-        <>
-          <Avoid q={q} />
-          <Jedovate q={q} />
-        </>
-      ) : null}
+      <AbsGeneral />
     </>
   );
 }

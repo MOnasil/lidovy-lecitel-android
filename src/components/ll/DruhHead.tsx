@@ -155,27 +155,7 @@ function HeadPic({ k }: { k: string }) {
 
 /** Longer description: first sentence visible, the rest behind "více ▾". */
 function MoreText({ t }: { t: string }) {
-  const [open, setOpen] = useState(false);
-  const parts = t.split(/(?<=\.)\s+/);
-  const first = parts[0] ?? "";
-  const rest = parts.slice(1).join(" ");
-  return (
-    <p className="hd-more">
-      {first}
-      {rest ? (
-        open ? (
-          <> {rest}</>
-        ) : (
-          <>
-            {" "}
-            <button type="button" className="linkish" onClick={() => setOpen(true)}>
-              více ▾
-            </button>
-          </>
-        )
-      ) : null}
-    </p>
-  );
+  return <p className="hd-more">{t}</p>;
 }
 
 /** Photo credit line (required by the photo licences). */
@@ -307,11 +287,11 @@ export function HeadCard({ s, extra }: { s: Species; extra?: React.ReactNode }) 
         ) : null}
         <div className="hd-txt">
           <p className="hd-desc">{s.popis}</p>
-          {D.zaj?.[s.k] ? <MoreText t={D.zaj[s.k]!} /> : null}
           {s.ln && s.ln.length ? <p className="hd-ln">Lidově: {s.ln.join(", ")}</p> : null}
         </div>
         <FormIcons s={s} jump />
       </div>
+      {D.zaj?.[s.k] ? <MoreText t={D.zaj[s.k]!} /> : null}
       <HeadFacts k={s.k} />
       {u && (u[1] || u[2]) ? (
         <div className="hd-when">
@@ -611,7 +591,7 @@ const VYDEJ: Record<string, string> = {
   R: "na recept",
 };
 
-/** Collapsible list of pharmacy products for one form of use; mixtures shown right away with their content. */
+/** Pharmacy products for one form of use, shown right under the form (first 3, rest on request). */
 function PharmList({
   items,
   label = "Přípravky v lékárně",
@@ -619,13 +599,15 @@ function PharmList({
   items: PharmItem[];
   label?: string;
 }) {
+  const [all, setAll] = useState(false);
   if (!items.length) return null;
+  const shown = all ? items : items.slice(0, 3);
   return (
-    <details className="ph-list">
-      <summary>
+    <div className="ph-list ph-open">
+      <div className="ph-lbl">
         💊 {label} ({items.length})
-      </summary>
-      {items.map((p) => (
+      </div>
+      {shown.map((p) => (
         <div key={p.name + p.sizes.join()} className="ph-item">
           <b>{p.name}</b>
           {p.sizes.length ? <span className="note"> – {p.sizes.join(", ")}</span> : null}
@@ -635,7 +617,12 @@ function PharmList({
           </div>
         </div>
       ))}
-    </details>
+      {items.length > shown.length ? (
+        <button type="button" className="chip sm" onClick={() => setAll(true)}>
+          Zobrazit další ({items.length - shown.length})
+        </button>
+      ) : null}
+    </div>
   );
 }
 

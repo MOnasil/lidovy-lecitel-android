@@ -1,4 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Komentar } from "./Komentar";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { SP } from "@/lib/ll/data";
 import { avatarSrc } from "@/lib/ll/avatars";
@@ -9,8 +10,8 @@ const NAV = [
   { to: "/", label: "Co mě trápí", exact: true },
   { to: "/atlas", label: "Atlas" },
   { to: "/interakce", label: "Interakce" },
-  { to: "/lekarnik", label: "Lékárník" },
-  { to: "/zahradka", label: "Zahrádka" },
+  { to: "/lekarnik", label: "Rada lékárníka" },
+  { to: "/zahradka", label: "Moje zahrádka" },
 ] as const;
 
 const LEGACY: Record<string, string> = {
@@ -263,8 +264,12 @@ export function Layout({ children }: { children: ReactNode }) {
           <div className="brand">
             <Link to="/" className="brand-link" aria-label="Lidový léčitel – úvod">
               <Logo />
-              <h1>Lidový léčitel</h1>
+              <span className="brand-t">
+                <h1>Lidový léčitel</h1>
+                <small className="brand-sub">testovací verze</small>
+              </span>
             </Link>
+            <Komentar />
             <AccountLink />
           </div>
           <nav className="site-nav" aria-label="Hlavní">

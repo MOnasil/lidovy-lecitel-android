@@ -803,4 +803,79 @@
   .vys-table.moje th:nth-child(4) { width: 132px; }
   .st-sel { max-width: 128px; }
   @media (max-width: 420px) { .vys-table.moje th:nth-child(2), .vys-table.moje td:nth-child(2) { display: none; } }
+
+  /* ---- 2026-11-21 ---- */
+  /* pharmacy products right under each form */
+  .ph-list.ph-open { display: flex; flex-direction: column; gap: 6px; }
+  .ph-lbl { font-size: .82rem; font-weight: 700; color: #2b4699; }
+  .dark .ph-list { background: #1d2540; border-color: #2e3a63; }
+  .dark .ph-lbl { color: #aebfff; }
+  .ph-open .chip { align-self: flex-start; }
+  /* previous / next species */
+  .prevnext { display: flex; justify-content: space-between; gap: 8px; margin: 6px 0 10px; }
+  .prevnext a { flex: 1 1 0; min-width: 0; padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 12px; background: var(--card); color: var(--primary); font-weight: 700; font-size: .9rem; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .prevnext .pn-next { text-align: right; }
+  /* risk tiles, four in a row */
+  .rtiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+  .rtile { display: flex; flex-direction: column; border: 1.5px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--card); }
+  .rtile.sev-r { border-color: #e24b4a; }
+  .rtile.sev-y { border-color: #ef9f27; }
+  .rtile-l { display: flex; flex-direction: column; text-decoration: none; color: inherit; }
+  .rtile-l img, .rtile-ph { width: 100%; aspect-ratio: 1; object-fit: cover; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 1.6rem; }
+  .rtile-l b { font-size: .74rem; line-height: 1.2; padding: 4px 5px 2px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .rtile-b { margin: auto 4px 4px; border: 0; border-radius: 999px; font: 700 .66rem var(--font-sans, inherit); padding: 3px 4px; cursor: pointer; }
+  .rtile-b.sev-r { background: #fcebeb; color: #a32d2d; }
+  .rtile-b.sev-y { background: #faeeda; color: #854f0b; }
+  .dark .rtile-b.sev-r { background: #501313; color: #f7c1c1; }
+  .dark .rtile-b.sev-y { background: #412402; color: #fac775; }
+  .rt-why { margin-top: 8px; }
+  .rt-why.sev-r { border-left: 4px solid #e24b4a; }
+  .rt-why.sev-y { border-left: 4px solid #ef9f27; }
+  @media (min-width: 640px) { .rtile-l b { font-size: .85rem; } .rtile-b { font-size: .74rem; } }
+  /* profile chips in rows */
+  .pchips { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+  .pchips p { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; }
+  .pchips-h { flex-basis: 100%; font-size: .8rem; font-weight: 800; color: var(--muted-foreground); }
+  .chip.static { cursor: default; }
+  .chip.ghost-chip { border-style: dashed; color: var(--primary); text-decoration: none; }
+  a.chip { text-decoration: none; color: inherit; }
+  .prof-link { display: block; text-decoration: none; color: #854f0b; background: #faeeda; border-color: #ef9f27; font-size: .95rem; }
+  .dark .prof-link { color: #fac775; background: #412402; }
+  /* atlas: clash badge */
+  .tile-risk { position: absolute; top: 8px; left: 8px; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: .9rem; background: #faeeda; border: 2px solid #ef9f27; box-shadow: 0 1px 3px rgb(0 0 0 / .2); }
+  .tile-risk.sev-r { background: #fcebeb; border-color: #e24b4a; }
+  /* co nekombinovat: groups for the user's medicines */
+  .ixg.sev-r { border-left: 5px solid #e24b4a; background: #fdf3f3; }
+  .ixg.sev-y { border-left: 5px solid #ef9f27; background: #fdf7ec; }
+  .dark .ixg.sev-r { background: #2a1414; }
+  .dark .ixg.sev-y { background: #2a1e0c; }
+  .mine-badge.sev-r { background: #fcebeb; color: #a32d2d; border-color: #e24b4a; }
+  /* header: test version + comment button */
+  .brand .brand-t { display: flex; flex-direction: column; line-height: 1.05; color: inherit; font-size: inherit; min-width: 0; }
+  .brand .brand-sub { font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #ba7517; }
+  .kom-btn { flex: none; margin-left: auto; border: 1.5px solid var(--border); background: var(--card); border-radius: 999px; padding: 5px 10px; font: 700 .8rem var(--font-sans, inherit); color: var(--primary); cursor: pointer; }
+  .kom-btn + .acct-area { margin-left: 8px; }
+  @media (max-width: 420px) { .kom-btn span { display: none; } .kom-btn { padding: 5px 8px; } }
+  .kom-bg { position: fixed; inset: 0; z-index: 60; background: rgb(0 0 0 / .45); display: flex; align-items: flex-end; justify-content: center; padding: 12px; }
+  @media (min-width: 640px) { .kom-bg { align-items: center; } }
+  .kom-dlg { width: 100%; max-width: 520px; background: var(--card); color: var(--foreground); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 10px 30px rgb(0 0 0 / .3); }
+  .kom-dlg form { display: flex; flex-direction: column; gap: 10px; }
+  .kom-dlg textarea { width: 100%; border: 1.5px solid var(--border); border-radius: 10px; padding: 10px; font: inherit; background: var(--background); color: inherit; }
+  /* profile: small theme switch top right, avatars without names */
+  .prof-head { position: relative; }
+  .prof-head .theme-seg { position: absolute; top: 10px; right: 10px; margin: 0; border-width: 1px; }
+  .prof-head .theme-lbl { display: none; }
+  .prof-head .theme-seg button { font-size: .7rem; padding: 3px 8px; border-left-width: 1px; }
+  .prof-head .ph-main { padding-top: 22px; }
+  .av-pick { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .av-opt:not(.av-up) > span { display: none; }
+  .av-up > span:not(.av-up-ic) { font-size: .7rem; }
+  /* co mě trápí: fill rows */
+  .chips.packed.fill > .chip { flex: 1 1 auto; text-align: center; }
+  .chips.packed > .chip { font-size: .86rem; padding: 6px 11px; }
+  @media (max-width: 420px) { .acct-in { display: none; } .brand-link h1 { font-size: 1.25rem; } .kom-btn { margin-left: auto; } }
+  #moje-vysadba select { max-width: 100%; }
+  /* gdpr page */
+  .gdpr h3 { margin-top: 14px; }
+  .gdpr ul { padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
 }

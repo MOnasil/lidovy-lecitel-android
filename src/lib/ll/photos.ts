@@ -11,7 +11,6 @@ const HIDDEN = new Set([
   "cichorium_intybus",
   "spirulina",
   "panax_ginseng",
-  "harpagophytum_procumbens",
 ]);
 
 export const photoUrl = (k: string, file: string): string | null =>

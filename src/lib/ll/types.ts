@@ -25,16 +25,41 @@ export type Study = {
   doi?: string;
 };
 export type Topic = { k: string; n: string; kw: string };
-export type Nem = { k: string; n: string; tp: string; kw: string; rx: string; tip: string; doc: string };
+export type Nem = {
+  k: string;
+  n: string;
+  tp: string;
+  kw: string;
+  rx: string;
+  tip: string;
+  doc: string;
+};
 export type Photo = { a: string; l: string; lu?: string; p: string; not?: boolean };
 /** [how to take, when, how often, price key, where to buy, grow key, processing] */
 export type Use = [string, string, string, string, string, string, string?];
 /** [area m², container litres, light, life form, sow months, harvest months, what to harvest, how to plant] */
 export type Garden = [number, number, string, string, number[], number[], string, string];
-export type LiverTox = { cz?: string; lat?: string; sk: string; vy: string; u: string; s: string; d: string; url: string };
+export type LiverTox = {
+  cz?: string;
+  lat?: string;
+  sk: string;
+  vy: string;
+  u: string;
+  s: string;
+  d: string;
+  url: string;
+};
 export type AbsItem = { s: string; st: string; d: string; y?: number; doi?: string };
 /** Interaction finding: t = Z zesiluje, O oslabuje, V snižuje vstřebávání, L zlepšuje vstřebávání, R riziko, N bez interakce; p = partner (lék, jídlo, bylina). */
-export type IxItem = { s: string; st: string; t: string; p: string; y?: number | null; doi?: string; sp?: string[] };
+export type IxItem = {
+  s: string;
+  st: string;
+  t: string;
+  p: string;
+  y?: number | null;
+  doi?: string;
+  sp?: string[];
+};
 /** Registered medicinal product from the SÚKL open data (DLP). */
 export type SuklProduct = {
   kod: string;
@@ -63,7 +88,10 @@ export type LLData = {
   avoid: (LiverTox & { cz: string; lat: string })[];
   ph: Record<string, Photo[]>;
   /** GBIF occurrences: n records, c grid cells [lon, lat, count], m records per month, kr top regions, nk number of regions. */
-  occ: Record<string, { n: number; c: [number, number, number][]; m?: number[]; kr?: string[]; nk?: number }>;
+  occ: Record<
+    string,
+    { n: number; c: [number, number, number][]; m?: number[]; kr?: string[]; nk?: number }
+  >;
   /** Region borders (Natural Earth, projected like cz) and regional capitals [label, lat, lon]. */
   kraje?: { p: { n: string; d: string }[]; m: [string, number, number][] };
   pravo: Record<string, string>;
@@ -89,6 +117,8 @@ export type LLData = {
   jvn?: Record<string, [string, string[]][]>;
   /** Longer description: origin, history, interesting facts */
   zaj?: Record<string, string>;
+  /** Marketed medicine names (SÚKL) with no known herb interaction group */
+  sl?: string[];
   /** Registered medicines (SÚKL DLP): [product name, medicine group key from meds.ts]. */
   lk?: [string, string][];
   ixg?: { g: string; it: IxItem[] }[];

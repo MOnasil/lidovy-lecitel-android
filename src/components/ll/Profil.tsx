@@ -1,27 +1,29 @@
 import { Link } from "@tanstack/react-router";
-import { useRef, useState } from "react";
-import { CONDS, D, FLAGS, SP, fmt, norm } from "@/lib/ll/data";
+import { useMemo, useRef, useState } from "react";
+import { CONDS, D, FLAGS, NM, SP, TP, fmt, norm } from "@/lib/ll/data";
+import { myRisks } from "@/lib/ll/risks";
 import {
   AVATAR_PRESETS,
   avatarSrc,
+  blobToDataUrl,
   ownAvatarEnabled,
+  saveLocalAvatar,
   shrinkPhoto,
   uploadOwnAvatar,
 } from "@/lib/ll/avatars";
 import { potizeOf, recommendFor } from "@/lib/ll/doporuceni";
 import { MED } from "@/lib/ll/meds";
-import { searchMedsAll } from "@/lib/ll/medsSukl";
+import { isKnownPlain, searchMedsAll, searchSuklPlain } from "@/lib/ll/medsSukl";
 import { isApp } from "@/lib/ll/platform";
 import { nameTerm } from "@/lib/ll/display";
 import { useApp } from "@/lib/ll/store";
 import { understand } from "@/lib/ll/understand";
-import { MineButtons, Pill, SpeciesLink } from "./common";
-import { StretyBox } from "./Leky";
-import { formsLabel, usedFor } from "./MojeVysadba";
+import { Pill, SpeciesLink } from "./common";
+import { formsLabel } from "./MojeVysadba";
 import { photo } from "@/lib/ll/photos";
 import { Welcome } from "./Welcome";
 
-/** Avatar picker: six plant pictures, or an own photo where uploads are available (Android app). */
+/** Avatar picker: own photo first (to the account where uploads exist, else on this device), then six painted pictures. */
 export function AvatarPicker({ value, onPick }: { value: string; onPick: (a: string) => void }) {
   const { account } = useApp();
   const file = useRef<HTMLInputElement>(null);
@@ -29,36 +31,42 @@ export function AvatarPicker({ value, onPick }: { value: string; onPick: (a: str
   const [err, setErr] = useState(false);
   return (
     <div className="av-pick">
-      {ownAvatarEnabled() && account ? (
-        <>
-          <button
-            type="button"
-            className="av-opt av-up"
-            disabled={busy}
-            onClick={() => file.current?.click()}
-          >
-            <span className="av-up-ic">{busy ? "…" : "📷"}</span>
-            <span>Vlastní fotka</span>
-          </button>
-          <input
-            ref={file}
-            type="file"
-            accept="image/*"
-            hidden
-            onChange={async (e) => {
-              const f = e.target.files?.[0];
-              if (!f) return;
-              setBusy(true);
-              setErr(false);
-              const blob = await shrinkPhoto(f);
-              const ok = blob ? await uploadOwnAvatar(blob) : false;
-              setBusy(false);
-              if (ok) onPick("own:" + Date.now());
-              else setErr(true);
-            }}
-          />
-        </>
-      ) : null}
+      <button
+        type="button"
+        className="av-opt av-up"
+        disabled={busy}
+        onClick={() => file.current?.click()}
+        title="Vlastní fotka"
+      >
+        <span className="av-up-ic">{busy ? "…" : "📷"}</span>
+        <span>Vlastní foto</span>
+      </button>
+      <input
+        ref={file}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={async (e) => {
+          const f = e.target.files?.[0];
+          if (!f) return;
+          setBusy(true);
+          setErr(false);
+          const blob = await shrinkPhoto(f);
+          let ok = false;
+          let v = "";
+          if (blob && ownAvatarEnabled() && account) {
+            ok = await uploadOwnAvatar(blob);
+            v = "own:" + Date.now();
+          } else if (blob) {
+            ok = saveLocalAvatar(await blobToDataUrl(blob));
+            v = "local:" + Date.now();
+          }
+          setBusy(false);
+          e.target.value = "";
+          if (ok) onPick(v);
+          else setErr(true);
+        }}
+      />
       {AVATAR_PRESETS.map((p) => (
         <button
           key={p.k}
@@ -68,8 +76,7 @@ export function AvatarPicker({ value, onPick }: { value: string; onPick: (a: str
           onClick={() => onPick(p.k)}
           title={p.n}
         >
-          <img src={avatarSrc(p.k) ?? ""} alt="" />
-          <span>{p.n}</span>
+          <img src={avatarSrc(p.k) ?? ""} alt={p.n} />
         </button>
       ))}
       {err ? <p className="note">Fotku se nepodařilo nahrát. Zkuste to znovu.</p> : null}
@@ -199,15 +206,17 @@ export function nameOnly(q: string): { herb: string; name: string; latky: string
   return out.slice(0, 5);
 }
 
-/** One search for illnesses, allergies and medicines; chosen items as removable chips. */
+const cap = (n: string) => (n ? n[0]!.toUpperCase() + n.slice(1).toLowerCase() : n);
+
+/** One search for illnesses, complaints, allergies and medicines; chosen items as removable chips. */
 export function ZdraviLeky({
-  title = "Moje zdraví a léky",
+  title = "Moje léky a zdraví",
   compact,
 }: {
   title?: string;
   compact?: boolean;
 }) {
-  const { account, prof, toggleProf, meds, setMeds, medsOther, saveMedsOther } = useApp();
+  const { account, prof, toggleProf, meds, setMeds, medsOther, saveMedsOther, doma } = useApp();
   const [q, setQ] = useState("");
   const nq = norm(q.trim());
   const cond = [
@@ -215,12 +224,20 @@ export function ZdraviLeky({
     ...CONDS.map((c) => ({ k: c.k, n: c.n, kw: c.kw })),
   ];
   const condHits = nq
-    ? cond.filter((c) => norm(c.n + " " + ("kw" in c ? c.kw : "")).includes(nq))
+    ? cond.filter((c) => norm(c.n + " " + ("kw" in c ? c.kw : "")).includes(nq)).slice(0, 6)
     : [];
-  const medHits = nq && nq.length >= 2 ? searchMedsAll(q).slice(0, 12) : [];
+  const u = nq.length >= 3 ? understand(q) : { n: [], t: [] };
+  const potHits = [
+    ...u.n.filter((k) => NM[k]).map((k) => ({ id: "n:" + k, n: NM[k]!.n })),
+    ...u.t.filter((k) => TP[k]).map((k) => ({ id: "t:" + k, n: TP[k]!.n })),
+  ].slice(0, 5);
+  const medHits = nq && nq.length >= 2 ? searchMedsAll(q).slice(0, 10) : [];
+  const plain = searchSuklPlain(q);
   const fake = nameOnly(q);
   const chosenCond = cond.filter((c) => prof.has(c.k));
+  const pot = potizeOf(prof);
   const own = ownMeds(medsOther);
+  const home = doma.filter((k) => SP[k]);
   const toggleMed = (k: string) =>
     setMeds(meds.includes(k) ? meds.filter((m) => m != k) : [...meds, k]);
   const addOwn = (t: string) => {
@@ -229,13 +246,14 @@ export function ZdraviLeky({
     setQ("");
   };
   const dropOwn = (t: string) => saveMedsOther(own.filter((x) => x != t).join("\n"));
+  const exact = medHits.length + plain.length > 0 && plain.some((p) => norm(p) == nq);
   return (
     <section className="box">
-      <h2>{title}</h2>
+      {title ? <h2>{title}</h2> : null}
       {compact ? null : (
         <p className="note">
-          Podle profilu označíme byliny a houby, které pro vás nejsou vhodné, a upozorníme na možné
-          střety s léky.{" "}
+          Podle profilu označíme byliny a houby, které pro vás nejsou vhodné, upozorníme na možné
+          střety s léky a doporučíme byliny na vaše potíže.{" "}
           {account
             ? "Profil ukládáme k vašemu účtu; vidíte ho jen vy."
             : "Dokud nejste přihlášeni, zůstávají údaje jen v tomto zařízení."}
@@ -245,8 +263,8 @@ export function ZdraviLeky({
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Napište nemoc, alergii nebo lék, např. astma, Euthyrox"
-          aria-label="Hledat nemoc, alergii nebo lék"
+          placeholder="Nemoc, potíž, alergie nebo lék, např. astma, nespavost, Paralen"
+          aria-label="Hledat nemoc, potíž, alergii nebo lék"
         />
       </div>
       {nq ? (
@@ -260,6 +278,18 @@ export function ZdraviLeky({
               onClick={() => (toggleProf(c.k, !prof.has(c.k)), setQ(""))}
             >
               🩺 {c.n} <span className="zl-add">{prof.has(c.k) ? "✓ v profilu" : "➕ přidat"}</span>
+            </button>
+          ))}
+          {potHits.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className="zl-hit"
+              aria-pressed={prof.has(p.id)}
+              onClick={() => (toggleProf(p.id, !prof.has(p.id)), setQ(""))}
+            >
+              😣 {p.n}{" "}
+              <span className="zl-add">{prof.has(p.id) ? "✓ trápí mě" : "➕ co mě trápí"}</span>
             </button>
           ))}
           {medHits.map(({ m, via }) => (
@@ -277,6 +307,20 @@ export function ZdraviLeky({
               </span>
             </button>
           ))}
+          {plain.map((n) => (
+            <button
+              key={n}
+              type="button"
+              className="zl-hit"
+              aria-pressed={own.some((x) => norm(x) == norm(n))}
+              onClick={() => addOwn(cap(n))}
+            >
+              💊 {cap(n)} <span className="note"> – známé střety s bylinami nemáme</span>
+              <span className="zl-add">
+                {own.some((x) => norm(x) == norm(n)) ? "✓ moje léky" : "➕ k mým lékům"}
+              </span>
+            </button>
+          ))}
           {fake.map((f) => (
             <div key={f.name} className="alert ix-warn">
               ⚠️ <b>{f.name}</b> má v názvu „{f.herb.toLowerCase()}“, ale podle registrace tuto
@@ -286,56 +330,97 @@ export function ZdraviLeky({
                 : "Jde o potravinu pro zvláštní lékařské účely, název označuje jen příchuť."}
             </div>
           ))}
-          {q.trim().length >= 3 ? (
+          {q.trim().length >= 3 && !exact && !condHits.length && !potHits.length ? (
             <button type="button" className="zl-hit zl-own" onClick={() => addOwn(q)}>
               ➕ Přidat „{q.trim().slice(0, 60)}“ jako vlastní lék
             </button>
           ) : null}
         </div>
       ) : null}
-      {chosenCond.length || meds.length || own.length ? (
-        <div className="chips" aria-label="Vybráno">
-          {chosenCond.map((c) => (
-            <button
-              key={c.k}
-              type="button"
-              className="chip sm"
-              aria-pressed="true"
-              onClick={() => toggleProf(c.k, false)}
-            >
-              🩺 {c.n.length > 48 ? c.n.slice(0, 46) + "…" : c.n} ✕
-            </button>
-          ))}
-          {meds.map((k) =>
-            MED[k] ? (
+      <div className="pchips">
+        {meds.length || own.length ? (
+          <p>
+            <span className="pchips-h">💊 Léky</span>
+            {meds.map((k) =>
+              MED[k] ? (
+                <button
+                  key={k}
+                  type="button"
+                  className="chip sm"
+                  aria-pressed="true"
+                  onClick={() => toggleMed(k)}
+                >
+                  {MED[k]!.n} ✕
+                </button>
+              ) : null,
+            )}
+            {own.map((t) => (
               <button
-                key={k}
+                key={t}
+                type="button"
+                className={`chip sm${isKnownPlain(t) ? "" : " own-med"}`}
+                aria-pressed="true"
+                onClick={() => dropOwn(t)}
+                title={
+                  isKnownPlain(t)
+                    ? "Známé střety s bylinami nemáme."
+                    : "U vlastního léku střety nehlídáme – zeptejte se lékárníka."
+                }
+              >
+                {t} ✕
+              </button>
+            ))}
+          </p>
+        ) : null}
+        {chosenCond.length ? (
+          <p>
+            <span className="pchips-h">🩺 Nemoci a stavy</span>
+            {chosenCond.map((c) => (
+              <button
+                key={c.k}
                 type="button"
                 className="chip sm"
                 aria-pressed="true"
-                onClick={() => toggleMed(k)}
+                onClick={() => toggleProf(c.k, false)}
               >
-                💊 {MED[k]!.n} ✕
+                {c.n.length > 48 ? c.n.slice(0, 46) + "…" : c.n} ✕
               </button>
-            ) : null,
-          )}
-          {own.map((t) => (
-            <button
-              key={t}
-              type="button"
-              className="chip sm own-med"
-              aria-pressed="true"
-              onClick={() => dropOwn(t)}
-              title="U vlastního léku střety nehlídáme – zeptejte se lékárníka."
-            >
-              💊 {t} ✕
-            </button>
-          ))}
-        </div>
-      ) : null}
-      {own.length ? (
+            ))}
+          </p>
+        ) : null}
+        {!compact && pot.length ? (
+          <p>
+            <span className="pchips-h">😣 Co mě trápí</span>
+            {pot.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className="chip sm"
+                aria-pressed="true"
+                onClick={() => toggleProf(p.id, false)}
+              >
+                {p.n} ✕
+              </button>
+            ))}
+          </p>
+        ) : null}
+        {!compact ? (
+          <p>
+            <span className="pchips-h">🏠 Mám doma</span>
+            {home.map((k) => (
+              <SpeciesLink key={k} k={k} className="chip sm">
+                {SP[k]!.cz.split(" (")[0]}
+              </SpeciesLink>
+            ))}
+            <Link to="/zahradka" className="chip sm ghost-chip">
+              {home.length ? "Upravit v Moje zahrádka ›" : "Přidat v Moje zahrádka ›"}
+            </Link>
+          </p>
+        ) : null}
+      </div>
+      {own.some((t) => !isKnownPlain(t)) ? (
         <p className="note">
-          U vlastních léků střety s bylinami nehlídáme – zeptejte se lékárníka.
+          U vlastních léků (čárkovaný rámeček) střety s bylinami nehlídáme – zeptejte se lékárníka.
         </p>
       ) : null}
       {compact ? null : (
@@ -357,6 +442,22 @@ export function ZdraviLeky({
         </>
       )}
     </section>
+  );
+}
+
+/** Links from the profile to what it changes elsewhere: clashes (Interakce) and recommendations. */
+function ProfilLinks() {
+  const { prof } = useApp();
+  const n = useMemo(() => myRisks(prof).length, [prof]);
+  if (!n) return null;
+  return (
+    <Link to="/interakce" className="box prof-link">
+      ⚠️{" "}
+      <b>
+        {n} {n == 1 ? "možný střet" : n < 5 ? "možné střety" : "možných střetů"}
+      </b>{" "}
+      s bylinami podle vašeho profilu <span aria-hidden="true">›</span>
+    </Link>
   );
 }
 
@@ -406,60 +507,6 @@ function ResetBox() {
   );
 }
 
-function Potize() {
-  const { prof, toggleProf } = useApp();
-  const [q, setQ] = useState("");
-  const [miss, setMiss] = useState(false);
-  const pot = potizeOf(prof);
-  return (
-    <section className="box">
-      <h2>Co mě trápí</h2>
-      <form
-        className="ask compact"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const u = understand(q);
-          const add = [...u.n.map((k) => "n:" + k), ...u.t.map((k) => "t:" + k)];
-          setMiss(!add.length);
-          add.forEach((f) => toggleProf(f, true));
-          if (add.length) setQ("");
-        }}
-      >
-        <input
-          value={q}
-          onChange={(e) => (setQ(e.target.value), setMiss(false))}
-          placeholder="Např. špatně spím, bolí mě klouby"
-          aria-label="Přidat potíž"
-        />
-        <button type="submit" className="btn">
-          Přidat
-        </button>
-      </form>
-      {miss ? <p className="note">Tomu jsem neporozuměl, zkuste to napsat jinak.</p> : null}
-      {pot.length ? (
-        <div className="chips">
-          {pot.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              className="chip sm"
-              aria-pressed="true"
-              onClick={() => toggleProf(p.id, false)}
-            >
-              {p.n} ✕
-            </button>
-          ))}
-        </div>
-      ) : (
-        <p className="note">
-          Zatím nic. Potíže přidáte tady nebo tlačítkem „Uložit potíže do profilu“ u výsledků v Co
-          mě trápí.
-        </p>
-      )}
-    </section>
-  );
-}
-
 function Doporuceni() {
   const { prof, doma } = useApp();
   const pot = potizeOf(prof);
@@ -498,59 +545,14 @@ function Doporuceni() {
   );
 }
 
-function MamDoma() {
-  const { doma } = useApp();
-  const list = doma.filter((k) => SP[k]);
-  return (
-    <section className="box">
-      <h2>🏠 Mám doma</h2>
-      {list.length ? (
-        <table className="vys-table moje">
-          <thead>
-            <tr>
-              <th>Bylina</th>
-              <th>Na co</th>
-              <th>Podání</th>
-              <th aria-label="Odebrat" />
-            </tr>
-          </thead>
-          <tbody className="grp-doma">
-            {list.map((k) => (
-              <tr key={k}>
-                <td>
-                  <SpeciesLink k={k} className="vys-name">
-                    {photo(k) ? (
-                      <img src={photo(k)!} alt="" width={28} height={28} loading="lazy" />
-                    ) : null}
-                    {SP[k]!.cz.split(" (")[0]}
-                  </SpeciesLink>
-                </td>
-                <td>{usedFor(k, [])}</td>
-                <td>{formsLabel(k)}</td>
-                <td>
-                  <MineButtons k={k} sm />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : (
-        <p className="note">Zatím nic. V Atlasu nebo u rostliny klepněte na „Mám doma“.</p>
-      )}
-    </section>
-  );
-}
-
 export function Profil() {
   const [welcome, setWelcome] = useState(false);
   return (
     <>
       <ProfilHead />
       <ZdraviLeky />
-      <StretyBox />
-      <Potize />
+      <ProfilLinks />
       <Doporuceni />
-      <MamDoma />
       <ResetBox />
       <section className="box">
         <h3>O aplikaci</h3>
@@ -559,6 +561,9 @@ export function Profil() {
           nemocí a příznaků a vychází z rozboru {fmt(D.stats.clanku)} volně dostupných vědeckých
           článků. Zobrazuje jen to, co studie naznačují, a to, co se tradičně používá – nic z toho
           není lékařské doporučení.
+        </p>
+        <p>
+          <Link to="/soukromi">Ochrana osobních údajů (GDPR)</Link>
         </p>
         {isApp() ? (
           <button type="button" className="btn ghost" onClick={() => setWelcome(true)}>

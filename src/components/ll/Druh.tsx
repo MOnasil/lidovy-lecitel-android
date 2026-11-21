@@ -4,7 +4,17 @@ import { D, HUM, SP, U, kat, rank, studies, warns, fmt } from "@/lib/ll/data";
 import { habitat, interestingTrad, processSteps, sourceIcons } from "@/lib/ll/display";
 import { scrollToAnchor, takePendingAnchor } from "@/lib/ll/jump";
 import { useApp } from "@/lib/ll/store";
-import { AbsList, GeneralAlerts, IxList, StudyItem, UseItem, WarnAlert } from "./common";
+import { riskOf } from "@/lib/ll/risks";
+import {
+  AbsList,
+  GeneralAlerts,
+  IxList,
+  SpeciesLink,
+  StudyItem,
+  UseItem,
+  WarnAlert,
+} from "./common";
+import { atlasList } from "./Atlas";
 import {
   EvidenceCard,
   FactTiles,
@@ -161,10 +171,33 @@ function OccMap({ k }: { k: string }) {
   );
 }
 
+/** "‹ previous | next ›" between species, in the Atlas order (with its current filter and search). */
+function PrevNext({ k }: { k: string }) {
+  const { ui, doma } = useApp();
+  let list = atlasList(ui.af, ui.as, doma);
+  if (!list.some((s) => s.k == k)) list = atlasList("vse", "", doma);
+  const i = list.findIndex((s) => s.k == k);
+  if (i < 0 || list.length < 2) return null;
+  const prev = list[(i - 1 + list.length) % list.length]!;
+  const next = list[(i + 1) % list.length]!;
+  const nm = (cz: string) => cz.split(" (")[0];
+  return (
+    <nav className="prevnext" aria-label="Další druhy">
+      <SpeciesLink k={prev.k} className="pn-prev">
+        ‹ {nm(prev.cz)}
+      </SpeciesLink>
+      <SpeciesLink k={next.k} className="pn-next">
+        {nm(next.cz)} ›
+      </SpeciesLink>
+    </nav>
+  );
+}
+
 export function Druh({ k }: { k: string }) {
   const { prof } = useApp();
   const s = SP[k]!;
   const w = warns(k, prof);
+  const risk1 = riskOf(k, prof);
   const all = studies(k);
   const pos = all
     .filter((x) => x.d == "p")
@@ -187,8 +220,9 @@ export function Druh({ k }: { k: string }) {
   const gi = growInfo(k);
   const growable = !!g && !!gi && gi.lvl != "N";
   const noun = s.kat == "houba" ? "houbu" : "bylinu";
+  const growTitle = `Pěstování ${s.kat == "houba" ? "houby" : "byliny"} v ČR`;
   const stepsTitle = growable
-    ? `Jak zpracovat doma vypěstovanou ${noun}`
+    ? "Jak úrodu zpracovat"
     : D.hab?.[k] == "W"
       ? `Jak zpracovat nasbíranou ${noun}`
       : `Jak ${noun} zpracovat`;
@@ -227,17 +261,24 @@ export function Druh({ k }: { k: string }) {
       <p>
         <Link to="/atlas">← Atlas</Link>
       </p>
+      <PrevNext k={k} />
       <HeadCard
         s={s}
         extra={
           <>
-            {w.some((x) => x.meds?.length) ? (
-              <div className="alert ix-warn">
-                ⚠️ <b>Možný střet s vašimi léky</b> – {toPozor}.
-              </div>
-            ) : w.some((x) => x.hit) ? (
-              <div className="alert crit">
-                <b>Pro vás nevhodné</b> – {toPozor}.
+            {risk1 ? (
+              <div className={`alert ${risk1.sev == "r" ? "crit" : "ix-warn"}`}>
+                {risk1.sev == "r" ? "🔴" : "🟡"}{" "}
+                <b>
+                  {w.some((x) => x.meds?.length)
+                    ? risk1.sev == "r"
+                      ? "Nekombinujte s vašimi léky"
+                      : "Možný střet s vašimi léky"
+                    : risk1.sev == "r"
+                      ? "Pro vás nevhodné"
+                      : "Opatrně podle vašeho profilu"}
+                </b>
+                {risk1.why ? ` (${risk1.why})` : ""} – {toPozor}.
               </div>
             ) : null}
           </>
@@ -342,7 +383,7 @@ export function Druh({ k }: { k: string }) {
         </Sec>
       ) : null}
       {growable && g && gi ? (
-        <Sec icon="🌱" title="Pěstování v ČR" id="pestovani">
+        <Sec icon="🌱" title={growTitle} id="pestovani">
           <div className="rows">
             <div className="row">
               <span>Náročnost</span>
@@ -392,6 +433,21 @@ export function Druh({ k }: { k: string }) {
             </div>
           ) : null}
           <p className="mt-1">{u[4]}</p>
+          {growable ? (
+            <>
+              <h4 className="fgrp">{growTitle}</h4>
+              <p>
+                Dá se vypěstovat i doma.{" "}
+                <button
+                  type="button"
+                  className="linkish"
+                  onClick={() => scrollToAnchor("pestovani")}
+                >
+                  Jak pěstovat a zpracovat úrodu ›
+                </button>
+              </p>
+            </>
+          ) : null}
           {!growable && steps.length ? (
             <>
               <h4 className="fgrp">{stepsTitle}</h4>
@@ -430,6 +486,7 @@ export function Druh({ k }: { k: string }) {
           <p className="note">K této {kt[1]} zatím nemáme studii s příznivým výsledkem.</p>
         )}
       </Sec>
+      <PrevNext k={k} />
     </>
   );
 }

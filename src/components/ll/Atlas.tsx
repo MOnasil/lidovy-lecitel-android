@@ -3,6 +3,7 @@ import { D, TOP, grade, norm, score } from "@/lib/ll/data";
 import { TCM, growLabel } from "@/lib/ll/display";
 import { photo } from "@/lib/ll/photos";
 import { useApp } from "@/lib/ll/store";
+import { riskOf } from "@/lib/ll/risks";
 import { AtlasExtras } from "./Babske";
 import { MineButtons, SpeciesLink } from "./common";
 
@@ -25,11 +26,9 @@ const FILTERS: [string, string][] = [
   ["pest", "Lze pěstovat doma"],
 ];
 
-export function Atlas() {
-  const { ui, setUI, doma } = useApp();
-  const [open, setOpen] = useState(false);
-  const f = ui.af;
-  const q = norm(ui.as);
+/** The Atlas list for a filter and search, in the order the Atlas shows it. */
+export function atlasList(f: string, search: string, doma: string[]) {
+  const q = norm(search);
   const list = D.species.filter((s) => {
     if (s.k == "houby") return false;
     const gl = growLabel(s.k);
@@ -42,8 +41,16 @@ export function Atlas() {
       (f == "pest" && (gl == D.grow["E"] || gl == D.grow["M"]));
     return okF && (!q || norm(s.cz + " " + s.lat + " " + (s.ln || []).join(" ")).includes(q));
   });
-  // Without a search: the best-backed first, only ATLAS_FIRST of them until "Rozbalit vše".
-  const sorted = q ? list : [...list].sort((a, b) => evidenceWeight(b.k) - evidenceWeight(a.k));
+  // Without a search: the best-backed first.
+  return q ? list : [...list].sort((a, b) => evidenceWeight(b.k) - evidenceWeight(a.k));
+}
+
+export function Atlas() {
+  const { ui, setUI, doma, prof } = useApp();
+  const [open, setOpen] = useState(false);
+  const f = ui.af;
+  const q = norm(ui.as);
+  const sorted = atlasList(f, ui.as, doma);
   const shown = q || open ? sorted : sorted.slice(0, ATLAS_FIRST);
   return (
     <>
@@ -76,9 +83,9 @@ export function Atlas() {
             podporují studie.
           </p>
         ) : null}
-        <p className="note">{list.length} druhů</p>
+        <p className="note">{sorted.length} druhů</p>
       </section>
-      {list.length ? (
+      {sorted.length ? (
         <div className="tiles">
           {shown.map((s) => {
             const top = TOP.filter((t) => {
@@ -88,10 +95,19 @@ export function Atlas() {
               .sort((a, b) => score(s.k, b.k) - score(s.k, a.k))
               .slice(0, 2);
             const p = photo(s.k);
+            const r = riskOf(s.k, prof);
             return (
               <div key={s.k} className="tile-w">
                 <SpeciesLink k={s.k} className="tile">
                   {p ? <img src={p} alt="" loading="lazy" width={480} height={360} /> : null}
+                  {r ? (
+                    <span
+                      className={`tile-risk sev-${r.sev}`}
+                      title={r.why ? `Pozor: ${r.why}` : "Pozor podle vašeho profilu"}
+                    >
+                      ⚠️
+                    </span>
+                  ) : null}
                   <div className="tx">
                     <h3>{s.cz}</h3>
                     <div className="lat">{s.lat}</div>

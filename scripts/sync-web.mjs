@@ -17,13 +17,26 @@ for (const f of readdirSync("src/routes")) if (f != "__root.tsx") rmSync(join("s
 for (const f of readdirSync(join(WEB, "src/routes")))
   if (f.endsWith(".tsx") && f != "__root.tsx") cpSync(join(WEB, "src/routes", f), join("src/routes", f));
 
+// Photo set of the app (more and newer photos than the web, chosen for quality): species → credits in
+// the order of public/img/<species>/1.jpg, 2.jpg… The web keeps its own set on the Lovable CDN.
+const set = JSON.parse(readFileSync("scripts/photo-set.json", "utf8"));
+const dataPath = "src/data/ll-data.json";
+const data = JSON.parse(readFileSync(dataPath, "utf8"));
+for (const [k, ph] of Object.entries(set)) data.ph[k] = ph;
+writeFileSync(dataPath, JSON.stringify(data));
+// Species whose web photos are hidden but whose app photos show the plant.
+const ph = "src/lib/ll/photos.ts";
+writeFileSync(ph, readFileSync(ph, "utf8").replace('  "harpagophytum_procumbens",\n', ""));
+
 // Photos: the app ships its own copies (public/img), so map species keys to local files.
 const photos = JSON.parse(readFileSync("src/data/ll-photos.json", "utf8"));
 const local = {};
-for (const [k, v] of Object.entries(photos)) {
+for (const k of new Set([...Object.keys(photos), ...readdirSync("public/img")])) {
+  if (!existsSync(`public/img/${k}`)) continue;
+  const files = readdirSync(`public/img/${k}`).filter((f) => /^(t|\d+)\.jpg$/.test(f));
+  if (!files.length) continue;
   local[k] = {};
-  for (const n of Object.keys(v)) if (n == "t" || n == "1") local[k][n] = `img/${k}/${n}.jpg`;
-  for (const n of Object.keys(v)) if (!local[k][n] && existsSync(`public/img/${k}/${n}.jpg`)) local[k][n] = `img/${k}/${n}.jpg`;
+  for (const f of files) local[k][f.replace(".jpg", "")] = `img/${k}/${f}`;
 }
 writeFileSync("src/data/ll-photos.json", JSON.stringify(local));
 

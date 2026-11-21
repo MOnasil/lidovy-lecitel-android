@@ -21,3 +21,22 @@ export function searchMedsAll(q: string): { m: Med; via: string[] }[] {
   }
   return [...out.values()];
 }
+
+/** Marketed medicines without a known herb interaction group, matched by product name. */
+export function searchSuklPlain(q: string, limit = 6): string[] {
+  const n = fold(q.trim());
+  if (n.length < 3) return [];
+  const starts: string[] = [];
+  const inside: string[] = [];
+  for (const name of D.sl ?? []) {
+    const f = fold(name);
+    if (f.startsWith(n)) starts.push(name);
+    else if (f.includes(" " + n)) inside.push(name);
+    if (starts.length >= limit) break;
+  }
+  return [...starts, ...inside].slice(0, limit);
+}
+
+const SL = new Set((D.sl ?? []).map(fold));
+/** Is this an own medicine that SÚKL knows (so "no known clash" rather than "unknown")? */
+export const isKnownPlain = (name: string) => SL.has(fold(name.trim()));

@@ -26,7 +26,16 @@ import {
 import { understand } from "@/lib/ll/understand";
 import { useApp, type UIState } from "@/lib/ll/store";
 import type { Grade, Species, Study } from "@/lib/ll/types";
-import { GeneralAlerts, HowToUse, MineButtons, Pill, SpeciesLink, WarnAlert, Who } from "./common";
+import {
+  GeneralAlerts,
+  HowToUse,
+  MineButtons,
+  PackedChips,
+  Pill,
+  SpeciesLink,
+  WarnAlert,
+  Who,
+} from "./common";
 import { setPendingAnchor } from "@/lib/ll/jump";
 import { FormIcons } from "./DruhHead";
 
@@ -40,6 +49,19 @@ const GRANK: Record<Grade, number> = { S: 0, A: 1, B: 2, C: 3 };
 
 /** How many of the most common topics are shown before "Další potíže…". */
 const COMMON_TOPICS = 10;
+/** The most common illnesses, offered as quick picks next to the topics. */
+const COMMON_NEM = [
+  "nachlazeni",
+  "kasel",
+  "krk",
+  "chripka",
+  "bolest_hlavy",
+  "zada",
+  "nespavost",
+  "paleni_zahy",
+  "zacpa",
+  "mocovy",
+];
 
 const PF: [string, string][] = [
   ["vse", "Vše"],
@@ -445,22 +467,47 @@ export function Poradce() {
         />
         <button className="btn">Vyhledat</button>
       </form>
-      <div className="chips">
-        {topShown.map((t) => (
+      <PackedChips
+        className={sel ? "chips" : "chips packed"}
+        items={[
+          ...topShown.map((t) => ({
+            k: "t:" + t.k,
+            el: (
+              <button
+                type="button"
+                className="chip"
+                aria-pressed={ui.picked.includes(t.k)}
+                onClick={() => clickTopic(t.k)}
+              >
+                {t.n}
+              </button>
+            ),
+          })),
+          ...(sel ? [] : COMMON_NEM.filter((k) => NM[k])).map((k) => ({
+            k: "n:" + k,
+            el: (
+              <button
+                type="button"
+                className="chip"
+                onClick={() =>
+                  setUI({ q: NM[k]!.n, picked: [], nem: [k], sub: null, less: false, allT: false })
+                }
+              >
+                {NM[k]!.n}
+              </button>
+            ),
+          })),
+        ]}
+        tail={
           <button
-            key={t.k}
             type="button"
-            className="chip"
-            aria-pressed={ui.picked.includes(t.k)}
-            onClick={() => clickTopic(t.k)}
+            className="chip sm"
+            onClick={() => setUI((s) => ({ allT: !s.allT }))}
           >
-            {t.n}
+            {ui.allT ? "Skrýt ostatní témata" : sel ? "Jiné téma…" : "Další potíže…"}
           </button>
-        ))}
-        <button type="button" className="chip sm" onClick={() => setUI((s) => ({ allT: !s.allT }))}>
-          {ui.allT ? "Skrýt ostatní témata" : sel ? "Jiné téma…" : "Další potíže…"}
-        </button>
-      </div>
+        }
+      />
       {related ? (
         <div>
           <p className="note mb-1.5">K tomu často patří. Trápí vás zároveň i tohle?</p>

@@ -49,10 +49,37 @@ function Chip({
   );
 }
 
+/** Planner topics come from the profile's complaints, so the planner and profile stay in step. */
+function useGardenTopics(): [string[], (next: string[]) => void] {
+  const { prof, toggleProf } = useApp();
+  const gt = [
+    ...new Set(
+      [...prof].flatMap((f) =>
+        f.startsWith("t:") && TP[f.slice(2)]
+          ? [f.slice(2)]
+          : f.startsWith("n:") && NM[f.slice(2)]
+            ? [NM[f.slice(2)]!.tp]
+            : [],
+      ),
+    ),
+  ];
+  const set = (next: string[]) => {
+    for (const k of next) if (!gt.includes(k)) toggleProf("t:" + k, true);
+    for (const k of gt)
+      if (!next.includes(k)) {
+        toggleProf("t:" + k, false);
+        for (const f of prof)
+          if (f.startsWith("n:") && NM[f.slice(2)]?.tp == k) toggleProf(f, false);
+      }
+  };
+  return [gt, set];
+}
+
 export function Zahradka() {
   const { ui, setUI, prof } = useApp();
+  const [gtList, setGt] = useGardenTopics();
   const [vys, setVys] = useVysadba();
-  const moje = <MojeVysadba v={vys} setV={setVys} topics={ui.gt} />;
+  const moje = <MojeVysadba v={vys} setV={setVys} topics={gtList} />;
   const [edits, setEdits] = useLocal<GardenEdits>(KEY_GARDEN_EDITS, { skip: [], force: [] });
   const [swapFor, setSwapFor] = useState<string | null>(null);
   const edited = edits.skip.length + edits.force.length > 0;
@@ -60,12 +87,12 @@ export function Zahradka() {
   const [q, setQ] = useState("");
   const [allT, setAllT] = useState(false);
   const [miss, setMiss] = useState(false);
-  const topShown = allT ? TOP : TOP.filter((t, i) => i < COMMON_TOPICS || ui.gt.includes(t.k));
+  const topShown = allT ? TOP : TOP.filter((t, i) => i < COMMON_TOPICS || gtList.includes(t.k));
   const search = () => {
     const u = understand(q);
     const t = [...new Set([...u.t, ...u.n.map((n) => NM[n]?.tp).filter((x): x is string => !!x)])];
     setMiss(!t.length);
-    if (t.length) setUI((s) => ({ gt: [...new Set([...s.gt, ...t])] }));
+    if (t.length) setGt([...new Set([...gtList, ...t])]);
   };
 
   const form = (
@@ -100,11 +127,9 @@ export function Zahradka() {
         {topShown.map((x) => (
           <Chip
             key={x.k}
-            on={ui.gt.includes(x.k)}
+            on={gtList.includes(x.k)}
             onClick={() =>
-              setUI((s) => ({
-                gt: s.gt.includes(x.k) ? s.gt.filter((k) => k != x.k) : [...s.gt, x.k],
-              }))
+              setGt(gtList.includes(x.k) ? gtList.filter((k) => k != x.k) : [...gtList, x.k])
             }
           >
             {x.n}
@@ -145,7 +170,7 @@ export function Zahradka() {
     </section>
   );
 
-  if (!ui.gt.length)
+  if (!gtList.length)
     return (
       <>
         {moje}
@@ -155,7 +180,7 @@ export function Zahradka() {
         </div>
       </>
     );
-  const plan = gardenPlan(ui, prof, edits);
+  const plan = gardenPlan({ ...ui, gt: gtList }, prof, edits);
   const { out, used } = plan;
   const price = out.reduce(
     (a, x) => {
@@ -168,7 +193,7 @@ export function Zahradka() {
   // with several complaints the plan is split into groups (herbs for more complaints first)
   type PlanItem = (typeof out)[number];
   const groups: { k: string; icon: string; t: string; items: PlanItem[] }[] =
-    ui.gt.length > 1
+    gtList.length > 1
       ? [
           {
             k: "multi",
@@ -176,7 +201,7 @@ export function Zahradka() {
             t: "Pomáhá na víc vašich potíží",
             items: out.filter((x) => x.fit.length > 1),
           },
-          ...ui.gt.map((t) => ({
+          ...gtList.map((t) => ({
             k: t,
             icon: TICON[t] ?? "🌿",
             t: TP[t]?.n ?? t,

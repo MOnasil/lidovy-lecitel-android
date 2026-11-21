@@ -17,6 +17,7 @@ import { Route as InterakceRouteImport } from './routes/interakce'
 import { Route as LekarnikRouteImport } from './routes/lekarnik'
 import { Route as ProfilRouteImport } from './routes/profil'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as SoukromiRouteImport } from './routes/soukromi'
 import { Route as ZahradkaRouteImport } from './routes/zahradka'
 import { Route as AtlasIndexRouteImport } from './routes/atlas.index'
 import { Route as AtlasDruhRouteImport } from './routes/atlas.$druh'
@@ -61,6 +62,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SoukromiRoute = SoukromiRouteImport.update({
+  id: '/soukromi',
+  path: '/soukromi',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ZahradkaRoute = ZahradkaRouteImport.update({
   id: '/zahradka',
   path: '/zahradka',
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/lekarnik': typeof LekarnikRoute
   '/profil': typeof ProfilRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/soukromi': typeof SoukromiRoute
   '/zahradka': typeof ZahradkaRoute
   '/atlas/$druh': typeof AtlasDruhRoute
   '/atlas/': typeof AtlasIndexRoute
@@ -99,6 +106,7 @@ export interface FileRoutesByTo {
   '/lekarnik': typeof LekarnikRoute
   '/profil': typeof ProfilRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/soukromi': typeof SoukromiRoute
   '/zahradka': typeof ZahradkaRoute
   '/atlas/$druh': typeof AtlasDruhRoute
   '/atlas': typeof AtlasIndexRoute
@@ -113,6 +121,7 @@ export interface FileRoutesById {
   '/lekarnik': typeof LekarnikRoute
   '/profil': typeof ProfilRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/soukromi': typeof SoukromiRoute
   '/zahradka': typeof ZahradkaRoute
   '/atlas/$druh': typeof AtlasDruhRoute
   '/atlas/': typeof AtlasIndexRoute
@@ -128,6 +137,7 @@ export interface FileRouteTypes {
     | '/lekarnik'
     | '/profil'
     | '/reset-password'
+    | '/soukromi'
     | '/zahradka'
     | '/atlas/$druh'
     | '/atlas/'
@@ -141,6 +151,7 @@ export interface FileRouteTypes {
     | '/lekarnik'
     | '/profil'
     | '/reset-password'
+    | '/soukromi'
     | '/zahradka'
     | '/atlas/$druh'
     | '/atlas'
@@ -154,6 +165,7 @@ export interface FileRouteTypes {
     | '/lekarnik'
     | '/profil'
     | '/reset-password'
+    | '/soukromi'
     | '/zahradka'
     | '/atlas/$druh'
     | '/atlas/'
@@ -168,6 +180,7 @@ export interface RootRouteChildren {
   LekarnikRoute: typeof LekarnikRoute
   ProfilRoute: typeof ProfilRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  SoukromiRoute: typeof SoukromiRoute
   ZahradkaRoute: typeof ZahradkaRoute
   AtlasDruhRoute: typeof AtlasDruhRoute
   AtlasIndexRoute: typeof AtlasIndexRoute
@@ -231,6 +244,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/soukromi': {
+      id: '/soukromi'
+      path: '/soukromi'
+      fullPath: '/soukromi'
+      preLoaderRoute: typeof SoukromiRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/zahradka': {
       id: '/zahradka'
       path: '/zahradka'
@@ -264,6 +284,7 @@ const rootRouteChildren: RootRouteChildren = {
   LekarnikRoute: LekarnikRoute,
   ProfilRoute: ProfilRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  SoukromiRoute: SoukromiRoute,
   ZahradkaRoute: ZahradkaRoute,
   AtlasDruhRoute: AtlasDruhRoute,
   AtlasIndexRoute: AtlasIndexRoute,

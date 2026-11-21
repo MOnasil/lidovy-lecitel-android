@@ -34,6 +34,7 @@ export function Lekarnik() {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [sProfilem, setSProfilem] = useState(true);
+  const [gdpr, setGdpr] = useState(false);
   const [chyba, setChyba] = useState<string | null>(null);
   const [urgent, setUrgent] = useState<string | null>(null);
   const [platba, setPlatba] = useState(false);
@@ -52,6 +53,10 @@ export function Lekarnik() {
   const short = (n: string) => (n.length > 50 ? n.slice(0, 48) + "…" : n);
 
   function odeslat(placeno: boolean) {
+    if (!gdpr) {
+      setChyba("Před odesláním potvrďte souhlas se zpracováním osobních údajů.");
+      return;
+    }
     const v = overDotaz(q);
     if (!v.ok) {
       if (v.urgent) {
@@ -75,7 +80,7 @@ export function Lekarnik() {
   return (
     <section className="box ask-ph" id="lekarnik">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3>Zeptejte se lékárníka</h3>
+        <h3>Rada lékárníka</h3>
         <span className="test-tag">testovací verze</span>
       </div>
       <p className="note">
@@ -157,6 +162,20 @@ export function Lekarnik() {
                 ? ` (${[flags.length ? `${flags.length} zdravotních omezení` : "", meds ? `${meds} léků` : ""].filter(Boolean).join(", ")})`
                 : " (zatím prázdný)"}
               , aby lékárník věděl, co užíváte.
+            </span>
+          </label>
+          <label className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              checked={gdpr}
+              onChange={(e) => (setGdpr(e.target.checked), setChyba(null))}
+            />
+            <span>
+              Souhlasím se{" "}
+              <Link to="/soukromi" target="_blank">
+                zpracováním osobních údajů (GDPR)
+              </Link>
+              {sProfilem ? ", včetně údajů o zdraví v přehledu" : ""}.
             </span>
           </label>
           {urgent ? (

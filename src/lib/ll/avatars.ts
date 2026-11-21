@@ -1,4 +1,4 @@
-// Profile pictures: five painted pictures or the user's own photo where an upload backend is
+// Profile pictures: six painted pictures or the user's own photo where an upload backend is
 // configured (Android app).
 
 // Painted (watercolour-style) SVG pictures, drawn for the app – no third-party images.
@@ -40,6 +40,13 @@ export const AVATAR_PRESETS: { k: string; n: string; src: string }[] = [
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><defs><filter id="w" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="3" seed="55" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="7"/><feGaussianBlur stdDeviation="0.7"/></filter><filter id="p"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3"/><feColorMatrix values="0 0 0 0 0.45  0 0 0 0 0.4  0 0 0 0 0.3  0 0 0 0.10 0"/><feComposite in2="SourceGraphic" operator="in"/></filter><radialGradient id="bg" cx="40%" cy="35%" r="75%"><stop offset="0" stop-color="#fbf7ec"/><stop offset="1" stop-color="#ece4cf"/></radialGradient></defs><circle cx="48" cy="48" r="48" fill="url(#bg)"/><circle cx="48" cy="48" r="48" fill="#fff" filter="url(#p)"/><g filter="url(#w)"><path d="M48 84c0-14 1-24 0-34" stroke="#4f7d3a" stroke-width="3" fill="none" stroke-linecap="round"/>\n<path d="M48 70c-10-6-17-2-17 3 6 3 12 2 17-3z" fill="#6ca34f" opacity=".85"/>\n<g transform="translate(48 40)" opacity=".9">\n<ellipse rx="7" ry="15" cy="-14" fill="#e98fa6"/><ellipse rx="7" ry="15" cy="-14" fill="#ee9fb2" transform="rotate(45)"/>\n<ellipse rx="7" ry="15" cy="-14" fill="#e98fa6" transform="rotate(90)"/><ellipse rx="7" ry="15" cy="-14" fill="#ee9fb2" transform="rotate(135)"/>\n<ellipse rx="7" ry="15" cy="-14" fill="#e98fa6" transform="rotate(180)"/><ellipse rx="7" ry="15" cy="-14" fill="#ee9fb2" transform="rotate(225)"/>\n<ellipse rx="7" ry="15" cy="-14" fill="#e98fa6" transform="rotate(270)"/><ellipse rx="7" ry="15" cy="-14" fill="#ee9fb2" transform="rotate(315)"/>\n<circle r="9" fill="#e8b23a"/><circle r="5" fill="#c98a1e" opacity=".6"/></g></g></svg>',
     ),
   },
+  {
+    k: "zahradka",
+    n: "Zahrádka",
+    src: svg(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><defs><filter id="w" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="3" seed="66" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="7"/><feGaussianBlur stdDeviation="0.7"/></filter><filter id="p"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3"/><feColorMatrix values="0 0 0 0 0.45  0 0 0 0 0.4  0 0 0 0 0.3  0 0 0 0.10 0"/><feComposite in2="SourceGraphic" operator="in"/></filter><radialGradient id="bg" cx="40%" cy="35%" r="75%"><stop offset="0" stop-color="#fbf7ec"/><stop offset="1" stop-color="#ece4cf"/></radialGradient><clipPath id="c"><circle cx="48" cy="48" r="47"/></clipPath></defs><circle cx="48" cy="48" r="48" fill="url(#bg)"/><circle cx="48" cy="48" r="48" fill="#fff" filter="url(#p)"/><g clip-path="url(#c)"><g filter="url(#w)"><path d="M0 66c20-5 70-5 96 0v30H0z" fill="#8a6142" opacity=".75"/><path d="M6 70c18-3 66-3 84 0" stroke="#6e4a30" stroke-width="2" fill="none" opacity=".6"/><path d="M8 80c18-3 62-3 80 0" stroke="#6e4a30" stroke-width="2" fill="none" opacity=".5"/><path d="M14 66c0-8 0-14 0-20M24 66V40M34 66V48" stroke="#c8a77a" stroke-width="2.6" stroke-linecap="round" opacity=".8"/><path d="M12 46h24M12 54h24" stroke="#c8a77a" stroke-width="2" opacity=".7"/><path d="M48 67c0-8 0-14 0-22" stroke="#4f7d3a" stroke-width="2.6" fill="none"/><path d="M48 54c-9-6-15-1-15 3 6 3 11 2 15-3zM48 50c9-7 15-2 15 2-6 3-11 3-15-2z" fill="#7cb05c" opacity=".85"/><circle cx="48" cy="40" r="6" fill="#e9c24a" opacity=".9"/><circle cx="48" cy="40" r="2.6" fill="#b9821e" opacity=".7"/><path d="M66 67c-1-6 0-12-1-17M72 67c0-5 1-10 0-14M78 67c-1-4 0-8-1-11" stroke="#5f9446" stroke-width="2.2" fill="none" stroke-linecap="round"/><ellipse cx="65" cy="48" rx="4" ry="6" fill="#9b7fd0" opacity=".85"/><ellipse cx="72" cy="51" rx="3.5" ry="5" fill="#a98ad8" opacity=".85"/><ellipse cx="78" cy="55" rx="3" ry="4.5" fill="#9b7fd0" opacity=".8"/><path d="M24 64c-6-3-9 0-8 2 3 1 6 1 8-2zM30 64c5-4 9-1 8 1-3 2-6 2-8-1z" fill="#6ca34f" opacity=".8"/><ellipse cx="22" cy="28" rx="10" ry="4" fill="#fff" opacity=".7"/><circle cx="74" cy="22" r="8" fill="#f3cf6b" opacity=".7"/></g></g></svg>',
+    ),
+  },
 ];
 
 /** Earlier photo presets → nearest painted picture. */
@@ -62,6 +69,30 @@ export function configureOwnAvatar(b: OwnAvatarBackend) {
   backend = b;
 }
 export const ownAvatarEnabled = () => backend != null;
+
+/** Without an upload backend (web, signed out) the own photo is kept on this device only. */
+const KEY_LOCAL = "ll-avatar-vlastni";
+export function saveLocalAvatar(dataUrl: string): boolean {
+  try {
+    localStorage.setItem(KEY_LOCAL, dataUrl);
+    return true;
+  } catch {
+    return false;
+  }
+}
+const localAvatar = (): string | null => {
+  try {
+    return localStorage.getItem(KEY_LOCAL);
+  } catch {
+    return null;
+  }
+};
+export const blobToDataUrl = (b: Blob) =>
+  new Promise<string>((r) => {
+    const fr = new FileReader();
+    fr.onload = () => r(String(fr.result));
+    fr.readAsDataURL(b);
+  });
 export const uploadOwnAvatar = (blob: Blob) =>
   backend ? backend.upload(blob) : Promise.resolve(false);
 
@@ -69,6 +100,7 @@ export const uploadOwnAvatar = (blob: Blob) =>
 export function avatarSrc(a: string): string | null {
   if (!a) return null;
   if (a.startsWith("own:")) return backend?.url(a.slice(4)) ?? null;
+  if (a.startsWith("local:")) return localAvatar();
   const p = AVATAR_PRESETS.find((x) => x.k == (LEGACY[a] ?? a));
   return p ? p.src : null;
 }

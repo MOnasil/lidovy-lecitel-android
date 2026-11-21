@@ -45,7 +45,10 @@ export function Prihlaseni() {
     setBusy(true);
     try {
       if (mode == "login") {
-        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pass });
+        const { error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password: pass,
+        });
         if (error) setErr(czAuthError(error.message));
         else rememberStaySignedIn(stay);
       } else if (mode == "signup") {
@@ -59,13 +62,18 @@ export function Prihlaseni() {
         });
         if (error) setErr(czAuthError(error.message));
         else if (!data.session)
-          setDone(`Hotovo. Na adresu ${email.trim()} jsme poslali odkaz – po kliknutí na něj budete přihlášeni.`);
+          setDone(
+            `Hotovo. Na adresu ${email.trim()} jsme poslali odkaz – po kliknutí na něj budete přihlášeni.`,
+          );
       } else {
         const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
           redirectTo: "cz.lidovylecitel.app://reset-password",
         });
         if (error) setErr(czAuthError(error.message));
-        else setDone("Pokud k tomuto e-mailu existuje účet, poslali jsme na něj odkaz pro nastavení nového hesla.");
+        else
+          setDone(
+            "Pokud k tomuto e-mailu existuje účet, poslali jsme na něj odkaz pro nastavení nového hesla.",
+          );
       }
     } finally {
       setBusy(false);
@@ -78,7 +86,15 @@ export function Prihlaseni() {
       {mode != "forgot" ? (
         <div className="chips" role="tablist">
           {TABS.map((t) => (
-            <button key={t[0]} type="button" role="tab" className="chip" aria-pressed={mode == t[0]} aria-selected={mode == t[0]} onClick={() => go(t[0])}>
+            <button
+              key={t[0]}
+              type="button"
+              role="tab"
+              className="chip"
+              aria-pressed={mode == t[0]}
+              aria-selected={mode == t[0]}
+              onClick={() => go(t[0])}
+            >
               {t[1]}
             </button>
           ))}
@@ -106,12 +122,24 @@ export function Prihlaseni() {
           {mode == "signup" ? (
             <label className="field">
               Jméno
-              <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" maxLength={80} required />
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                autoComplete="name"
+                maxLength={80}
+                required
+              />
             </label>
           ) : null}
           <label className="field">
             E-mail
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+              required
+            />
           </label>
           {mode != "forgot" ? (
             <label className="field">
@@ -148,7 +176,13 @@ export function Prihlaseni() {
           ) : null}
           <div>
             <button type="submit" className="btn" disabled={busy}>
-              {busy ? "Chvilku…" : mode == "login" ? "Přihlásit se" : mode == "signup" ? "Vytvořit účet" : "Poslat odkaz"}
+              {busy
+                ? "Chvilku…"
+                : mode == "login"
+                  ? "Přihlásit se"
+                  : mode == "signup"
+                    ? "Vytvořit účet"
+                    : "Poslat odkaz"}
             </button>
           </div>
         </form>
@@ -198,16 +232,29 @@ export function NoveHeslo() {
       <form className="form" onSubmit={submit} noValidate>
         <label className="field">
           Nové heslo
-          <input type="password" value={pass} onChange={(e) => setPass(e.target.value)} autoComplete="new-password" minLength={8} required />
+          <input
+            type="password"
+            value={pass}
+            onChange={(e) => setPass(e.target.value)}
+            autoComplete="new-password"
+            minLength={8}
+            required
+          />
         </label>
         <label className="field">
           Heslo znovu
-          <input type="password" value={pass2} onChange={(e) => setPass2(e.target.value)} autoComplete="new-password" minLength={8} required />
+          <input
+            type="password"
+            value={pass2}
+            onChange={(e) => setPass2(e.target.value)}
+            autoComplete="new-password"
+            minLength={8}
+            required
+          />
         </label>
         {err ? (
           <div className="alert crit" role="alert">
-            {err}{" "}
-            {err.includes("vypršel") ? <Link to="/auth">Poslat nový odkaz</Link> : null}
+            {err} {err.includes("vypršel") ? <Link to="/auth">Poslat nový odkaz</Link> : null}
           </div>
         ) : null}
         <div>

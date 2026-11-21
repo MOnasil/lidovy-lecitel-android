@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { D, GL, SP, STL, U, best, grade, hasFlag, slug, type Warn } from "@/lib/ll/data";
 import { drugLabel, pharmacyText, whenHowOften } from "@/lib/ll/display";
@@ -595,5 +595,57 @@ export function SuklProducts({ k, bare }: { k: string; bare?: boolean }) {
         {D.sukl!.stav.split("-").reverse().join(". ").replace(/^0/, "")}.
       </p>
     </section>
+  );
+}
+
+/**
+ * A wrapped row of chips in priority order, but with a later chip pulled up when it fits the space
+ * left on a row; the chips then stretch so no row ends with an empty gap on the right.
+ */
+export function PackedChips({
+  items,
+  tail,
+  className = "chips",
+}: {
+  items: { k: string; el: React.ReactNode }[];
+  tail?: React.ReactNode;
+  className?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const sig = items.map((i) => i.k).join("|");
+  const [packed, setPacked] = useState<{ sig: string; order: string[] } | null>(null);
+  const order = packed?.sig == sig ? packed.order : null;
+  useEffect(() => {
+    if (order) return;
+    const el = ref.current;
+    if (!el) return;
+    const W = el.clientWidth;
+    const gap = parseFloat(getComputedStyle(el).columnGap) || 8;
+    const w = [...el.children].slice(0, items.length).map((c) => (c as HTMLElement).offsetWidth);
+    const used = new Set<number>();
+    const out: number[] = [];
+    for (let i = 0; i < items.length; i++) {
+      if (used.has(i)) continue;
+      used.add(i);
+      out.push(i);
+      let rem = W - w[i]!;
+      for (let j = i + 1; j < items.length && j < i + 8; j++)
+        if (!used.has(j) && w[j]! + gap <= rem) {
+          used.add(j);
+          out.push(j);
+          rem -= w[j]! + gap;
+        }
+    }
+    setPacked({ sig, order: out.map((i) => items[i]!.k) });
+  }, [order, sig, items]);
+  const byK = new Map(items.map((i) => [i.k, i.el]));
+  const ks = order ?? items.map((i) => i.k);
+  return (
+    <div ref={ref} className={`${className}${order ? " fill" : ""}`}>
+      {ks.map((k) => (
+        <Fragment key={k}>{byK.get(k)}</Fragment>
+      ))}
+      {tail}
+    </div>
   );
 }

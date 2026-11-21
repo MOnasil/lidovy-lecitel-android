@@ -111,8 +111,18 @@ export const GUIDE: GuideGroup[] = [
     icon: "🤕",
     title: "Léky na bolest a horečku",
     ex: "ibuprofen (Ibalgin, Nurofen), paracetamol (Paralen), aspirin, diklofenak",
-    rel: ["nsaid", "aspirin"],
+    rel: ["nsaid", "aspirin", "paracetamol"],
     rules: [
+      {
+        co: "Dva přípravky s paracetamolem najednou",
+        t: "R",
+        proc: "Paracetamol je i v mnoha lécích „na chřipku“ (Paralen Grip, Coldrex, Panadol Extra). Při souběžném užívání se snadno překročí bezpečná denní dávka a hrozí poškození jater. Vždy si přečtěte složení.",
+      },
+      {
+        co: "Paracetamol pravidelně a warfarin",
+        t: "Z",
+        proc: "Studie naznačují, že paracetamol užívaný několik dní po sobě ve vyšších dávkách může zesílit účinek warfarinu. Občasná dávka nevadí, při pravidelném užívání se poraďte s lékařem.",
+      },
       {
         co: "Alkohol s paracetamolem",
         t: "R",
@@ -503,5 +513,19 @@ export function guideStudies(): Record<string, IxItem[]> {
 /** Guide groups in display order: the user's groups first (keeping the base order), then the rest. */
 export function orderedGuide(prof: ReadonlySet<string>): { g: GuideGroup; mine: boolean }[] {
   const all = GUIDE.map((g) => ({ g, mine: relevant(g.rel, prof) }));
-  return [...all.filter((x) => x.mine), ...all.filter((x) => !x.mine)];
+  // The most general advice (everyday medicines, food and drink) right after what concerns the user.
+  const GENERAL = ["antibiotika", "antikoncepce", "bolest", "jidlo"];
+  const rest = all.filter((x) => !x.mine);
+  return [
+    ...all.filter((x) => x.mine),
+    ...rest.filter((x) => GENERAL.includes(x.g.k)),
+    ...rest.filter((x) => !GENERAL.includes(x.g.k)),
+  ];
+}
+
+/** How serious a group of rules is: "r" when any rule is a direct risk, "y" for weaker effects. */
+export function groupSev(g: GuideGroup): "r" | "y" | null {
+  if (g.rules.some((r) => r.t == "R")) return "r";
+  if (g.rules.some((r) => r.t == "Z" || r.t == "O" || r.t == "V")) return "y";
+  return null;
 }
