@@ -163,8 +163,8 @@ export function LekyBox() {
         </label>
       </section>
       {meds.length ? (
-        <section className="box">
-          <h3>Možné střety s vašimi léky</h3>
+        <section className="box ix-box">
+          <h3>⚠️ Možné střety s vašimi léky</h3>
           {hits.map(({ med, items }) => (
             <details key={med.k}>
               <summary>
@@ -208,8 +208,8 @@ export function StretyBox() {
   return (
     <>
       {meds.length ? (
-        <section className="box">
-          <h3>Možné střety s vašimi léky</h3>
+        <section className="box ix-box">
+          <h3>⚠️ Možné střety s vašimi léky</h3>
           {hits.map(({ med, items }) => (
             <details key={med.k}>
               <summary>

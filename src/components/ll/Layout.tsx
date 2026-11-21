@@ -1,5 +1,5 @@
-import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { SP } from "@/lib/ll/data";
 import { avatarSrc } from "@/lib/ll/avatars";
 import { useApp } from "@/lib/ll/store";
@@ -96,6 +96,8 @@ function AccountLink() {
 }
 
 /** Full-screen photo viewer; with several photos it has arrows, a counter and swiping. */
+type Shot = { s: string; a?: string; l?: string; p?: string };
+
 function Lightbox({
   list,
   i,
@@ -103,7 +105,7 @@ function Lightbox({
   onClose,
   setI,
 }: {
-  list: string[];
+  list: Shot[];
   i: number;
   alt: string;
   onClose: () => void;
@@ -134,7 +136,20 @@ function Lightbox({
         setX0(null);
       }}
     >
-      <img src={list[i]} alt={alt} onClick={(e) => e.stopPropagation()} />
+      <img src={list[i]?.s} alt={alt} onClick={(e) => e.stopPropagation()} />
+      {list[i]?.a ? (
+        <span className="lb-cred" onClick={(e) => e.stopPropagation()}>
+          Foto:{" "}
+          {list[i]!.p ? (
+            <a href={list[i]!.p} target="_blank" rel="noopener noreferrer">
+              {list[i]!.a}
+            </a>
+          ) : (
+            list[i]!.a
+          )}
+          {list[i]!.l ? ` · ${list[i]!.l}` : ""}
+        </span>
+      ) : null}
       {n > 1 ? (
         <>
           <button
@@ -165,8 +180,50 @@ function Lightbox({
   );
 }
 
+/** Places that scroll sideways themselves – a swipe there must not switch tabs. */
+const NO_SWIPE =
+  ".seg-row, .site-nav, table, .vys-table, .hd-gal, .lb, input, textarea, select, .mbar, .gcal1, .av-pick";
+
 export function Layout({ children }: { children: ReactNode }) {
-  const [zoom, setZoom] = useState<{ list: string[]; i: number; alt: string } | null>(null);
+  const [zoom, setZoom] = useState<{ list: Shot[]; i: number; alt: string } | null>(null);
+  const nav = useNavigate();
+  const path = useRouterState({ select: (r) => r.location.pathname });
+  const touch = useRef<{ x: number; y: number; t: number } | null>(null);
+
+  // Swipe sideways between the tabs; on a detail page or the profile a swipe right goes back.
+  const tabIndex = NAV.findIndex((n) => ("exact" in n && n.exact ? path == n.to : path == n.to));
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    if (!t || e.touches.length > 1 || (e.target as Element).closest(NO_SWIPE)) {
+      touch.current = null;
+      return;
+    }
+    touch.current = { x: t.clientX, y: t.clientY, t: Date.now() };
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const st = touch.current;
+    touch.current = null;
+    const t = e.changedTouches[0];
+    if (!st || !t || zoom) return;
+    const dx = t.clientX - st.x;
+    const dy = t.clientY - st.y;
+    if (Math.abs(dx) < 80 || Math.abs(dy) > Math.abs(dx) * 0.5 || Date.now() - st.t > 700) return;
+    if (tabIndex >= 0) {
+      const next = NAV[tabIndex + (dx < 0 ? 1 : -1)];
+      if (next) void nav({ to: next.to });
+    } else if (dx > 0 && typeof window != "undefined" && window.history.length > 1) {
+      window.history.back();
+    }
+  };
+
+  // keep the active tab visible in the scrolling menu
+  useEffect(() => {
+    document.querySelector<HTMLElement>('.site-nav a[aria-current="page"]')?.scrollIntoView({
+      block: "nearest",
+      inline: "center",
+      behavior: "smooth",
+    });
+  }, [path]);
 
   // Any element with data-zoom opens its photo full-screen (same as the original app).
   const onClickCapture = (e: React.MouseEvent) => {
@@ -177,15 +234,26 @@ export function Layout({ children }: { children: ReactNode }) {
     const img = z.tagName == "IMG" ? (z as HTMLImageElement) : z.querySelector("img");
     const src = z.dataset["zoom"]!;
     // a gallery (several photos of one plant) can be browsed with arrows
-    let list = [src];
+    let list: Shot[] = [{ s: src }];
     try {
       const g = z.closest<HTMLElement>("[data-gallery]")?.dataset["gallery"];
-      const parsed = g ? (JSON.parse(g) as string[]).filter(Boolean) : [];
-      if (parsed.length > 1) list = parsed;
+      const parsed = g
+        ? (JSON.parse(g) as (string | Shot)[])
+            .map((x) => (typeof x == "string" ? { s: x } : x))
+            .filter((x) => x.s)
+        : [];
+      if (parsed.length) list = parsed;
     } catch {
       /* no gallery */
     }
-    setZoom({ list, i: Math.max(0, list.indexOf(src)), alt: img?.alt ?? "" });
+    setZoom({
+      list,
+      i: Math.max(
+        0,
+        list.findIndex((x) => x.s == src),
+      ),
+      alt: img?.alt ?? "",
+    });
   };
 
   return (
@@ -213,8 +281,15 @@ export function Layout({ children }: { children: ReactNode }) {
           </nav>
         </div>
       </header>
-      <div className="wrap" onClickCapture={onClickCapture}>
-        <main className="site-main">{children}</main>
+      <div
+        className="wrap"
+        onClickCapture={onClickCapture}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
+        <main className="site-main" key={path}>
+          {children}
+        </main>
         <p className="note mt-[22px]">
           Informační encyklopedie, ne diagnóza ani léčebné doporučení. Texty shrnují, co naznačují
           vědecké studie a co se tradičně používá; vznikly rozborem volně dostupných článků

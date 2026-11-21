@@ -1,5 +1,9 @@
 import { useState } from "react";
-import { CONDS, FLAGS } from "@/lib/ll/data";
+import { CONDS, FLAGS, SP } from "@/lib/ll/data";
+import { MED } from "@/lib/ll/meds";
+import { potizeOf } from "@/lib/ll/doporuceni";
+import { ownMeds } from "./Profil";
+import { Link } from "@tanstack/react-router";
 import {
   CENA_KC,
   KEY_LEKARNIK,
@@ -25,7 +29,7 @@ const fmtCas = (d: Date) =>
 
 /** "Zeptejte se lékárníka" – TEST VERSION: stays in this browser, nothing is sent or charged. */
 export function Lekarnik() {
-  const { prof } = useApp();
+  const { prof, meds: medKeys, medsOther, doma } = useApp();
   const [list, setList] = useLocal<Dotaz[]>(KEY_LEKARNIK, []);
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -38,7 +42,14 @@ export function Lekarnik() {
     ...FLAGS.filter((f) => prof.has(f[0])),
     ...CONDS.filter((c) => prof.has(c.k)).map((c) => [c.k, c.n] as [string, string]),
   ];
-  const meds = [...prof].filter((p) => p.startsWith("med:")).length;
+  const medNames = [
+    ...medKeys.map((k) => MED[k]?.n).filter((x): x is string => !!x),
+    ...ownMeds(medsOther),
+  ];
+  const meds = medNames.length;
+  const pot = potizeOf(prof).map((p) => p.n);
+  const home = doma.filter((k) => SP[k]).map((k) => SP[k]!.cz.split(" (")[0]!);
+  const short = (n: string) => (n.length > 50 ? n.slice(0, 48) + "…" : n);
 
   function odeslat(placeno: boolean) {
     const v = overDotaz(q);
@@ -78,7 +89,42 @@ export function Lekarnik() {
             Položit otázku
           </button>
         </div>
-      ) : (
+      ) : null}
+      <div className="lek-sum">
+        {medNames.length || flags.length || pot.length || home.length ? (
+          <>
+            {medNames.length ? (
+              <p>
+                💊 <b>Léky:</b> {medNames.join(", ")}
+              </p>
+            ) : null}
+            {flags.length ? (
+              <p>
+                🩺 <b>Nemoci a alergie:</b> {flags.map((f) => short(f[1])).join(", ")}
+              </p>
+            ) : null}
+            {pot.length ? (
+              <p>
+                😣 <b>Co mě trápí:</b> {pot.join(", ").toLowerCase()}
+              </p>
+            ) : null}
+            {home.length ? (
+              <p>
+                🏠 <b>Mám doma:</b> {home.join(", ")}
+              </p>
+            ) : null}
+            <Link to="/profil" className="note">
+              Upravit v profilu
+            </Link>
+          </>
+        ) : (
+          <p className="note">
+            <Link to="/profil">Vyplňte léky a potíže v profilu</Link> – lékárník vám odpoví
+            přesněji.
+          </p>
+        )}
+      </div>
+      {!open ? null : (
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -106,7 +152,7 @@ export function Lekarnik() {
               onChange={(e) => setSProfilem(e.target.checked)}
             />
             <span>
-              Přiložit můj profil
+              Připojit k dotazu přehled výše
               {flags.length || meds
                 ? ` (${[flags.length ? `${flags.length} zdravotních omezení` : "", meds ? `${meds} léků` : ""].filter(Boolean).join(", ")})`
                 : " (zatím prázdný)"}

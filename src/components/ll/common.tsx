@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { D, GL, SP, STL, U, best, grade, hasFlag, slug, type Warn } from "@/lib/ll/data";
 import { drugLabel, pharmacyText, whenHowOften } from "@/lib/ll/display";
@@ -314,6 +315,48 @@ export const IX_T: Record<string, [string, string]> = {
   R: ["riziko", "ix-r"],
   N: ["bez významné interakce", "ix-n"],
 };
+/** Short explanation shown after tapping an interaction label. */
+const IX_EXPLAIN: Record<string, string> = {
+  "zesiluje účinek":
+    "Bylina působí podobně jako lék, nebo zpomalí jeho odbourávání. Účinek léku je pak silnější, než má být – třeba větší sklon ke krvácení nebo příliš nízký tlak či cukr.",
+  "oslabuje účinek":
+    "Bylina urychlí odbourávání léku v játrech nebo působí proti němu. Lék pak nemusí fungovat – třeba antikoncepce nebo léky na ředění krve.",
+  riziko:
+    "Kombinace může přímo uškodit, třeba prudce zvýšit tlak nebo vyvolat serotoninový syndrom. Nekombinujte.",
+  "snižuje vstřebávání":
+    "Látky se ve střevě navážou na sebe a do krve se dostane méně. Většinou pomůže odstup 2–4 hodiny.",
+  "zlepšuje vstřebávání": "Kombinace pomáhá, aby se do těla dostalo víc účinné látky.",
+  "bez významné interakce": "Studie nenašly, že by se bylina a lék výrazně ovlivňovaly.",
+  doporučení: "Praktická rada, jak bylinu nebo lék užívat.",
+};
+
+/** Interaction label that explains itself when tapped. */
+export function IxBadge({ label, cls }: { label: string; cls: string }) {
+  const [open, setOpen] = useState(false);
+  const ex = IX_EXPLAIN[label];
+  return (
+    <>
+      <button
+        type="button"
+        className={`ix-badge ${cls}${ex ? " ix-tap" : ""}`}
+        aria-expanded={ex ? open : undefined}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (ex) setOpen((v) => !v);
+        }}
+      >
+        {label}
+        {ex ? " ⓘ" : ""}
+      </button>
+      {open && ex ? (
+        <span className="ix-explain">
+          {ex} Než začnete bylinu užívat s léky, poraďte se s lékárníkem nebo lékařem.
+        </span>
+      ) : null}
+    </>
+  );
+}
+
 const IX_ST: Record<string, string> = {
   clinical_trial: "studie na lidech",
   meta_analysis: "přehledová studie",
@@ -334,7 +377,7 @@ export function IxList({ items, showSp }: { items: IxItem[]; showSp?: boolean })
         const names = showSp ? (x.sp || []).map((k) => SP[k]?.cz).filter(Boolean) : [];
         return (
           <li key={i}>
-            {t ? <span className={`ix-badge ${t[1]}`}>{t[0]}</span> : null}
+            {t ? <IxBadge label={t[0]} cls={t[1]} /> : null}
             {x.p ? <b className="ix-p">{cap1(drugLabel(x.p))}</b> : null}
             {names.length ? <span className="note"> · {names.join(", ")}</span> : null}
             <div>{x.s}</div>
@@ -359,7 +402,8 @@ export function IxList({ items, showSp }: { items: IxItem[]; showSp?: boolean })
 export function WarnAlert({ w, plain }: { w: Warn; plain?: boolean }) {
   if (w.hit)
     return (
-      <div className="alert crit">
+      <div className={`alert ${w.meds?.length ? "ix-warn" : "crit"}`}>
+        {w.meds?.length ? "⚠️ " : null}
         <b>
           {w.meds?.length
             ? `Možný střet s lékem ${w.meds.join(", ")}:`

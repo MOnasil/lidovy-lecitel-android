@@ -85,6 +85,10 @@ export type LLData = {
   hab?: Record<string, "W" | "G">;
   /** [how to recognise, possible confusion] for wild-collected species. */
   poznat?: Record<string, [string, string]>;
+  /** SÚKL products with a herb in the name but not in the composition: [name, active substances] */
+  jvn?: Record<string, [string, string[]][]>;
+  /** Longer description: origin, history, interesting facts */
+  zaj?: Record<string, string>;
   /** Registered medicines (SÚKL DLP): [product name, medicine group key from meds.ts]. */
   lk?: [string, string][];
   ixg?: { g: string; it: IxItem[] }[];

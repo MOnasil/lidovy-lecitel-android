@@ -12,6 +12,7 @@ import { potizeOf, recommendFor } from "@/lib/ll/doporuceni";
 import { MED } from "@/lib/ll/meds";
 import { searchMedsAll } from "@/lib/ll/medsSukl";
 import { isApp } from "@/lib/ll/platform";
+import { nameTerm } from "@/lib/ll/display";
 import { useApp } from "@/lib/ll/store";
 import { understand } from "@/lib/ll/understand";
 import { MineButtons, Pill, SpeciesLink } from "./common";
@@ -28,19 +29,6 @@ export function AvatarPicker({ value, onPick }: { value: string; onPick: (a: str
   const [err, setErr] = useState(false);
   return (
     <div className="av-pick">
-      {AVATAR_PRESETS.map((p) => (
-        <button
-          key={p.k}
-          type="button"
-          className="av-opt"
-          aria-pressed={value == p.k}
-          onClick={() => onPick(p.k)}
-          title={p.n}
-        >
-          <img src={avatarSrc(p.k) ?? ""} alt="" />
-          <span>{p.n}</span>
-        </button>
-      ))}
       {ownAvatarEnabled() && account ? (
         <>
           <button
@@ -71,6 +59,19 @@ export function AvatarPicker({ value, onPick }: { value: string; onPick: (a: str
           />
         </>
       ) : null}
+      {AVATAR_PRESETS.map((p) => (
+        <button
+          key={p.k}
+          type="button"
+          className="av-opt"
+          aria-pressed={value == p.k}
+          onClick={() => onPick(p.k)}
+          title={p.n}
+        >
+          <img src={avatarSrc(p.k) ?? ""} alt="" />
+          <span>{p.n}</span>
+        </button>
+      ))}
       {err ? <p className="note">Fotku se nepodařilo nahrát. Zkuste to znovu.</p> : null}
     </div>
   );
@@ -141,14 +142,14 @@ function ProfilHead() {
             {account ? account.email : "Nejste přihlášeni – profil zůstává jen v tomto zařízení."}
           </p>
         </div>
-        <button
-          type="button"
-          className="theme-btn"
-          onClick={() => setTheme(theme == "dark" ? "light" : "dark")}
-          aria-label={theme == "dark" ? "Přepnout na světlý vzhled" : "Přepnout na tmavý vzhled"}
-          title={theme == "dark" ? "Světlý vzhled" : "Tmavý vzhled"}
-        >
-          {theme == "dark" ? "☀️" : "🌙"}
+      </div>
+      <div className="theme-seg" role="group" aria-label="Vzhled">
+        <span className="theme-lbl">Vzhled:</span>
+        <button type="button" aria-pressed={theme != "dark"} onClick={() => setTheme("light")}>
+          ☀️ Světlý
+        </button>
+        <button type="button" aria-pressed={theme == "dark"} onClick={() => setTheme("dark")}>
+          🌙 Tmavý
         </button>
       </div>
       {pick ? (
@@ -180,11 +181,34 @@ function ProfilHead() {
   );
 }
 
+/** Medicines the catalogue does not know, kept one per line in "meds_other". */
+export const ownMeds = (t: string) =>
+  t
+    .split(/\n|;|,/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+
+/** Medicine products whose name mentions a herb they do not contain (from the SÚKL list). */
+export function nameOnly(q: string): { herb: string; name: string; latky: string[] }[] {
+  const nq = norm(q.trim());
+  if (nq.length < 3) return [];
+  const out: { herb: string; name: string; latky: string[] }[] = [];
+  for (const [k, list] of Object.entries(D.jvn ?? {}))
+    for (const [name, latky] of list)
+      if (norm(name).includes(nq)) out.push({ herb: nameTerm(k, name), name, latky });
+  return out.slice(0, 5);
+}
+
 /** One search for illnesses, allergies and medicines; chosen items as removable chips. */
-function ZdraviLeky() {
+export function ZdraviLeky({
+  title = "Moje zdraví a léky",
+  compact,
+}: {
+  title?: string;
+  compact?: boolean;
+}) {
   const { account, prof, toggleProf, meds, setMeds, medsOther, saveMedsOther } = useApp();
   const [q, setQ] = useState("");
-  const [other, setOther] = useState<string | null>(null);
   const nq = norm(q.trim());
   const cond = [
     ...FLAGS.map(([k, n]) => ({ k, n })),
@@ -194,19 +218,29 @@ function ZdraviLeky() {
     ? cond.filter((c) => norm(c.n + " " + ("kw" in c ? c.kw : "")).includes(nq))
     : [];
   const medHits = nq && nq.length >= 2 ? searchMedsAll(q).slice(0, 12) : [];
+  const fake = nameOnly(q);
   const chosenCond = cond.filter((c) => prof.has(c.k));
+  const own = ownMeds(medsOther);
   const toggleMed = (k: string) =>
     setMeds(meds.includes(k) ? meds.filter((m) => m != k) : [...meds, k]);
+  const addOwn = (t: string) => {
+    const v = t.trim().slice(0, 60);
+    if (v && !own.some((x) => norm(x) == norm(v))) saveMedsOther([...own, v].join("\n"));
+    setQ("");
+  };
+  const dropOwn = (t: string) => saveMedsOther(own.filter((x) => x != t).join("\n"));
   return (
     <section className="box">
-      <h2>Moje zdraví a léky</h2>
-      <p className="note">
-        Podle profilu označíme byliny a houby, které pro vás nejsou vhodné, a upozorníme na možné
-        střety s léky.{" "}
-        {account
-          ? "Profil ukládáme k vašemu účtu; vidíte ho jen vy."
-          : "Dokud nejste přihlášeni, zůstávají údaje jen v tomto zařízení."}
-      </p>
+      <h2>{title}</h2>
+      {compact ? null : (
+        <p className="note">
+          Podle profilu označíme byliny a houby, které pro vás nejsou vhodné, a upozorníme na možné
+          střety s léky.{" "}
+          {account
+            ? "Profil ukládáme k vašemu účtu; vidíte ho jen vy."
+            : "Dokud nejste přihlášeni, zůstávají údaje jen v tomto zařízení."}
+        </p>
+      )}
       <div className="ask">
         <input
           value={q}
@@ -225,34 +259,41 @@ function ZdraviLeky() {
               aria-pressed={prof.has(c.k)}
               onClick={() => (toggleProf(c.k, !prof.has(c.k)), setQ(""))}
             >
-              🩺 {c.n}
+              🩺 {c.n} <span className="zl-add">{prof.has(c.k) ? "✓ v profilu" : "➕ přidat"}</span>
             </button>
           ))}
-          {account
-            ? medHits.map(({ m, via }) => (
-                <button
-                  key={m.k}
-                  type="button"
-                  className="zl-hit"
-                  aria-pressed={meds.includes(m.k)}
-                  onClick={() => (toggleMed(m.k), setQ(""))}
-                >
-                  💊 {m.n}
-                  {via.length ? (
-                    <span className="note"> – {via.slice(0, 3).join(", ")}</span>
-                  ) : null}
-                </button>
-              ))
-            : null}
-          {!account && medHits.length ? (
-            <p className="note">
-              Léky si můžete uložit po <Link to="/auth">přihlášení</Link>.
-            </p>
+          {medHits.map(({ m, via }) => (
+            <button
+              key={m.k}
+              type="button"
+              className="zl-hit"
+              aria-pressed={meds.includes(m.k)}
+              onClick={() => (toggleMed(m.k), setQ(""))}
+            >
+              💊 {m.n}
+              {via.length ? <span className="note"> – {via.slice(0, 3).join(", ")}</span> : null}
+              <span className="zl-add">
+                {meds.includes(m.k) ? "✓ moje léky" : "➕ k mým lékům"}
+              </span>
+            </button>
+          ))}
+          {fake.map((f) => (
+            <div key={f.name} className="alert ix-warn">
+              ⚠️ <b>{f.name}</b> má v názvu „{f.herb.toLowerCase()}“, ale podle registrace tuto
+              rostlinu neobsahuje.{" "}
+              {f.latky.length
+                ? `Účinné látky: ${f.latky.join(", ")}.`
+                : "Jde o potravinu pro zvláštní lékařské účely, název označuje jen příchuť."}
+            </div>
+          ))}
+          {q.trim().length >= 3 ? (
+            <button type="button" className="zl-hit zl-own" onClick={() => addOwn(q)}>
+              ➕ Přidat „{q.trim().slice(0, 60)}“ jako vlastní lék
+            </button>
           ) : null}
-          {!condHits.length && !medHits.length ? <p className="note">Nic nenalezeno.</p> : null}
         </div>
       ) : null}
-      {chosenCond.length || meds.length ? (
+      {chosenCond.length || meds.length || own.length ? (
         <div className="chips" aria-label="Vybráno">
           {chosenCond.map((c) => (
             <button
@@ -278,35 +319,89 @@ function ZdraviLeky() {
               </button>
             ) : null,
           )}
+          {own.map((t) => (
+            <button
+              key={t}
+              type="button"
+              className="chip sm own-med"
+              aria-pressed="true"
+              onClick={() => dropOwn(t)}
+              title="U vlastního léku střety nehlídáme – zeptejte se lékárníka."
+            >
+              💊 {t} ✕
+            </button>
+          ))}
         </div>
       ) : null}
-      <h4 className="fgrp">Nejčastější</h4>
-      <div>
-        {FLAGS.map((f) => (
-          <label key={f[0]} className="check" htmlFor={`p-${f[0]}`}>
-            <input
-              type="checkbox"
-              id={`p-${f[0]}`}
-              checked={prof.has(f[0])}
-              onChange={(e) => toggleProf(f[0], e.target.checked)}
-            />
-            <span>{f[1]}</span>
-          </label>
-        ))}
-      </div>
-      {account ? (
-        <label className="field">
-          Jiné léky, které v seznamu nejsou
-          <textarea
-            value={other ?? medsOther}
-            onChange={(e) => setOther(e.target.value)}
-            onBlur={() => other != null && other != medsOther && saveMedsOther(other)}
-            maxLength={1000}
-            rows={2}
-            placeholder="Např. Prednison, Milurit…"
-          />
-        </label>
+      {own.length ? (
+        <p className="note">
+          U vlastních léků střety s bylinami nehlídáme – zeptejte se lékárníka.
+        </p>
       ) : null}
+      {compact ? null : (
+        <>
+          <h4 className="fgrp">Nejčastější</h4>
+          <div>
+            {FLAGS.map((f) => (
+              <label key={f[0]} className="check" htmlFor={`p-${f[0]}`}>
+                <input
+                  type="checkbox"
+                  id={`p-${f[0]}`}
+                  checked={prof.has(f[0])}
+                  onChange={(e) => toggleProf(f[0], e.target.checked)}
+                />
+                <span>{f[1]}</span>
+              </label>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+/** "Vymazat moje data" with an in-app confirmation. */
+function ResetBox() {
+  const { resetData } = useApp();
+  const [ask, setAsk] = useState(false);
+  const [done, setDone] = useState(false);
+  return (
+    <section className="box">
+      <h3>Začít znovu</h3>
+      {done ? <p className="note">✓ Hotovo – vaše data jsme vymazali.</p> : null}
+      {!ask ? (
+        <button
+          type="button"
+          className="btn ghost danger"
+          onClick={() => (setAsk(true), setDone(false))}
+        >
+          🗑️ Vymazat moje data a začít znovu
+        </button>
+      ) : (
+        <div className="alert crit" role="alertdialog" aria-label="Potvrzení vymazání">
+          <p>
+            <b>Opravdu vymazat všechna vaše data?</b> Smažou se nemoci, alergie, léky, uložené
+            potíže, seznam Mám doma a Zahrádka. Přihlášení, jméno, profilový obrázek a vzhled
+            zůstanou. Nejde to vrátit.
+          </p>
+          <div className="row-btns">
+            <button
+              type="button"
+              className="btn danger"
+              onClick={async () => {
+                await resetData();
+                setAsk(false);
+                setDone(true);
+              }}
+            >
+              Vymazat
+            </button>
+            <button type="button" className="btn ghost" onClick={() => setAsk(false)}>
+              Zrušit
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -456,6 +551,7 @@ export function Profil() {
       <Potize />
       <Doporuceni />
       <MamDoma />
+      <ResetBox />
       <section className="box">
         <h3>O aplikaci</h3>
         <p>

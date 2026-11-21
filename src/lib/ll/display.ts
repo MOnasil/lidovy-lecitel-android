@@ -1,4 +1,4 @@
-import { D, SP, U, grade } from "./data";
+import { D, SP, U, grade, norm } from "./data";
 
 /** Price ranges of ready-made products, shown without further explanation. */
 export const PRICE_KC: Record<string, string> = {
@@ -353,4 +353,24 @@ export function processSteps(k: string): ProcStep[] {
       d: other.join(" "),
     });
   return out;
+}
+
+/** The word that names the herb in a product title ("Echinacea", "Zázvor"…). */
+export function nameTerm(k: string, product: string): string {
+  const s = SP[k];
+  if (!s) return k;
+  const n = norm(product);
+  const cands = [
+    s.lat.split(" ")[0] ?? "",
+    s.cz.split(" (")[0]?.split(" ")[0] ?? "",
+    ...(s.ln ?? []),
+  ];
+  for (const c of cands) {
+    const w = norm(c);
+    if (w.length >= 4) {
+      const m = n.match(new RegExp("\\b" + w.slice(0, Math.max(4, w.length - 2)) + "\\w*"));
+      if (m) return product.slice(m.index, (m.index ?? 0) + m[0].length);
+    }
+  }
+  return s.cz.split(" (")[0] ?? s.cz;
 }

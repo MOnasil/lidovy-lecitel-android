@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { czAuthError } from "@/lib/ll/auth-errors";
 import { useApp } from "@/lib/ll/store";
 import { AvatarPicker } from "./Profil";
+import { rememberStaySignedIn } from "@/lib/ll/session";
 
 type Mode = "login" | "signup" | "forgot";
 const TABS: [Mode, string][] = [
@@ -22,6 +23,7 @@ export function Prihlaseni() {
   const [err, setErr] = useState("");
   const [done, setDone] = useState("");
   const [av, setAv] = useState("");
+  const [stay, setStay] = useState(true);
 
   // Already signed in (or just signed in): the profile is where medicines are filled in.
   useEffect(() => {
@@ -45,6 +47,7 @@ export function Prihlaseni() {
       if (mode == "login") {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: pass });
         if (error) setErr(czAuthError(error.message));
+        else rememberStaySignedIn(stay);
       } else if (mode == "signup") {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
@@ -122,6 +125,20 @@ export function Prihlaseni() {
                 required
               />
               {mode == "signup" ? <span className="note">Aspoň 8 znaků.</span> : null}
+            </label>
+          ) : null}
+          {mode == "login" ? (
+            <label className="check" htmlFor="stay-in">
+              <input
+                type="checkbox"
+                id="stay-in"
+                checked={stay}
+                onChange={(e) => setStay(e.target.checked)}
+              />
+              <span>
+                Zůstat přihlášen
+                <small className="note"> – odškrtněte na cizím nebo sdíleném zařízení</small>
+              </span>
             </label>
           ) : null}
           {err ? (

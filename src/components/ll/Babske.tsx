@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { D, SP, norm, warns } from "@/lib/ll/data";
+import { CONDS, D, FLAGS, SP, interactions, norm, warns } from "@/lib/ll/data";
+import { MED } from "@/lib/ll/meds";
 import { ABSORB, ABSV_CLS } from "@/lib/ll/absorb";
-import { GUIDE_REST, RULE_T, guideStudies, orderedGuide, relevant } from "@/lib/ll/ixguide";
+import { GUIDE, GUIDE_REST, RULE_T, guideStudies, orderedGuide, relevant } from "@/lib/ll/ixguide";
 import { photoUrl } from "@/lib/ll/photos";
 import { useApp } from "@/lib/ll/store";
+import { ZdraviLeky, ownMeds } from "./Profil";
 import { Sec } from "./DruhHead";
-import { AbsList, IxList, IX_T, SpeciesLink, UseItem, Who, cap1, verdict } from "./common";
+import { AbsList, IxBadge, IxList, IX_T, SpeciesLink, UseItem, Who, cap1, verdict } from "./common";
 
 const ORDER: Record<string, number> = { gS: -1, gA: 0, gB: 1, gM: 2, gN: 3 };
 const BV: Record<string, string[] | null> = {
@@ -168,7 +170,7 @@ function Interakce() {
                 const sp = (r.sp ?? []).filter((k) => SP[k]);
                 return (
                   <li key={r.co}>
-                    <span className={`ix-badge ${t[1]}`}>{t[0]}</span>
+                    <IxBadge label={t[0]} cls={t[1]} />
                     <b className="ix-p">{r.co}</b>
                     <div>{r.proc}</div>
                     {sp.length ? (
@@ -444,10 +446,124 @@ export function AtlasExtras() {
   );
 }
 
-/** "Interakce" tab: what not to combine, how to improve absorption, detox. */
+/** Herb names as links, comma separated. */
+function HerbLinks({ ks }: { ks: string[] }) {
+  return (
+    <>
+      {ks.map((k, i) => (
+        <span key={k}>
+          {i ? ", " : ""}
+          <SpeciesLink k={k}>{SP[k]!.cz.split(" (")[0]}</SpeciesLink>
+        </span>
+      ))}
+    </>
+  );
+}
+
+/** Top of "Interakce": the user's medicines and conditions, each with what not to combine. */
+function MojeInterakce() {
+  const { prof, meds, medsOther } = useApp();
+  const own = ownMeds(medsOther);
+  const conds = [
+    ...FLAGS.map(([k, n]) => ({ k, n })),
+    ...CONDS.map((c) => ({ k: c.k, n: c.n })),
+  ].filter((c) => prof.has(c.k) && c.k != "leky");
+  const medHits = useMemo(() => interactions(meds), [meds]);
+  const empty = !meds.length && !conds.length && !own.length;
+  return (
+    <>
+      <ZdraviLeky
+        title={empty ? "Jaké léky užíváte nebo co vás trápí?" : "Vaše léky a zdraví"}
+        compact
+      />
+      {medHits.map(({ med, items }) => {
+        const rules = GUIDE.filter(
+          (g) => g.rel.includes(med.k) || g.rel.some((r) => MED[r]?.k == med.k),
+        );
+        return (
+          <section key={med.k} className="box ix-box">
+            <h3>💊 {med.n}</h3>
+            {items.length ? (
+              <>
+                <h4 className="fgrp">Byliny a houby – nekombinovat nebo opatrně</h4>
+                <ul className="ix-list">
+                  {items.slice(0, 12).map((x) => (
+                    <li key={x.k}>
+                      <SpeciesLink k={x.k}>
+                        <b>{SP[x.k]!.cz.split(" (")[0]}</b>
+                      </SpeciesLink>
+                      <div>{x.t}</div>
+                    </li>
+                  ))}
+                </ul>
+                {items.length > 12 ? <p className="note">a dalších {items.length - 12}</p> : null}
+              </>
+            ) : (
+              <p className="note">K tomuto léku jsme nenašli střet s bylinami v aplikaci.</p>
+            )}
+            {rules
+              .flatMap((g) => g.rules)
+              .filter((r) => !r.sp?.length || !r.sp.every((k) => items.some((i) => i.k == k)))
+              .length ? (
+              <>
+                <h4 className="fgrp">Jídlo, pití a doplňky</h4>
+                <ul className="ix-list">
+                  {rules
+                    .flatMap((g) => g.rules)
+                    .filter((r) => !r.sp?.length || !r.sp.every((k) => items.some((i) => i.k == k)))
+                    .map((r) => (
+                      <li key={r.co}>
+                        <IxBadge label={RULE_T[r.t][0]} cls={RULE_T[r.t][1]} />
+                        <b className="ix-p">{r.co}</b>
+                        <div>{r.proc}</div>
+                      </li>
+                    ))}
+                </ul>
+              </>
+            ) : null}
+          </section>
+        );
+      })}
+      {own.map((t) => (
+        <section key={t} className="box">
+          <h3>💊 {t}</h3>
+          <p className="note">
+            Tento lék aplikace nezná, střety s bylinami proto nehlídáme. Zeptejte se lékárníka.
+          </p>
+        </section>
+      ))}
+      {conds.map((c) => {
+        const only = new Set([c.k]);
+        const ks = D.species
+          .filter((x) => x.k != "houby" && warns(x.k, only).some((w) => w.hit))
+          .map((x) => x.k)
+          .sort((a, b) => SP[a]!.cz.localeCompare(SP[b]!.cz, "cs"));
+        return (
+          <section key={c.k} className="box ix-box">
+            <h3>🩺 {c.n.length > 70 ? c.n.slice(0, 68) + "…" : c.n}</h3>
+            {ks.length ? (
+              <>
+                <h4 className="fgrp">Byliny a houby, kterým se raději vyhněte</h4>
+                <p>
+                  <HerbLinks ks={ks.slice(0, 20)} />
+                  {ks.length > 20 ? ` a dalších ${ks.length - 20}` : ""}
+                </p>
+              </>
+            ) : (
+              <p className="note">K tomu jsme nenašli byliny, kterým se vyhnout.</p>
+            )}
+          </section>
+        );
+      })}
+    </>
+  );
+}
+
+/** "Interakce" tab: the user's own overview, then what not to combine, absorption, detox. */
 export function InterakcePage() {
   return (
     <>
+      <MojeInterakce />
       <Interakce />
       <AbsGeneral />
       <Detox />

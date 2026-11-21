@@ -113,9 +113,21 @@ function HeadPic({ k }: { k: string }) {
   const i = Math.min(img, files.length - 1);
   const big = photoUrl(k, files[i]!)!;
   return (
-    <div className="hd-picw" data-gallery={JSON.stringify(files.map((f) => photoUrl(k, f)))}>
+    <div
+      className="hd-picw"
+      data-gallery={JSON.stringify(
+        files.map((f, j) => {
+          const c = D.ph[k]?.[j];
+          // the credit (author, licence) is shown in the enlarged view only
+          return { s: photoUrl(k, f), a: c?.a ?? "", l: c?.l ?? "", p: c?.p ?? "" };
+        }),
+      )}
+    >
       <a href={big} data-zoom={big} className="hd-pic">
         <img src={big} alt={s.cz} width={300} height={300} />
+        <span className="hd-info" aria-hidden="true">
+          ⓘ
+        </span>
         {files.length > 1 ? (
           <span className="hd-cnt">
             {i + 1}/{files.length}
@@ -138,6 +150,31 @@ function HeadPic({ k }: { k: string }) {
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** Longer description: first sentence visible, the rest behind "více ▾". */
+function MoreText({ t }: { t: string }) {
+  const [open, setOpen] = useState(false);
+  const parts = t.split(/(?<=\.)\s+/);
+  const first = parts[0] ?? "";
+  const rest = parts.slice(1).join(" ");
+  return (
+    <p className="hd-more">
+      {first}
+      {rest ? (
+        open ? (
+          <> {rest}</>
+        ) : (
+          <>
+            {" "}
+            <button type="button" className="linkish" onClick={() => setOpen(true)}>
+              více ▾
+            </button>
+          </>
+        )
+      ) : null}
+    </p>
   );
 }
 
@@ -176,11 +213,23 @@ function HeadFacts({ k }: { k: string }) {
         <small>{pharmacyText(k) ?? u[4]}</small>
       </div>
       {gi ? (
-        <div className="hd-fact">
-          <span className="tile-h">🌱 Pěstování v ČR</span>
-          <b className={`gl-${gi.lvl}`}>{gi.label}</b>
-          <small>{gi.text}</small>
-        </div>
+        gi.lvl != "N" && D.garden[k] ? (
+          <button
+            type="button"
+            className="hd-fact hd-fact-btn"
+            onClick={() => scrollToAnchor("pestovani")}
+          >
+            <span className="tile-h">🌱 Pěstování v ČR ›</span>
+            <b className={`gl-${gi.lvl}`}>{gi.label}</b>
+            <small>{gi.text}</small>
+          </button>
+        ) : (
+          <div className="hd-fact">
+            <span className="tile-h">🌱 Pěstování v ČR</span>
+            <b className={`gl-${gi.lvl}`}>{gi.label}</b>
+            <small>{gi.text}</small>
+          </div>
+        )
       ) : null}
     </div>
   );
@@ -254,11 +303,11 @@ export function HeadCard({ s, extra }: { s: Species; extra?: React.ReactNode }) 
         {hasPhoto(s.k) ? (
           <div className="hd-picc">
             <HeadPic k={s.k} />
-            <PhotoCredit k={s.k} />
           </div>
         ) : null}
         <div className="hd-txt">
           <p className="hd-desc">{s.popis}</p>
+          {D.zaj?.[s.k] ? <MoreText t={D.zaj[s.k]!} /> : null}
           {s.ln && s.ln.length ? <p className="hd-ln">Lidově: {s.ln.join(", ")}</p> : null}
         </div>
         <FormIcons s={s} jump />
@@ -519,6 +568,38 @@ export function FormsAbsorb({ s }: { s: Species }) {
           lékárníkem. Zdroj: SÚKL, otevřená data, stav k{" "}
           {D.sukl!.stav.split("-").reverse().join(". ").replace(/^0/, "")}.
         </p>
+      ) : s.formy.some((f) => f == "kapsle" || f == "extrakt") ? (
+        <p className="note ph-note">
+          💊 V lékárnách a drogeriích se prodává hlavně jako <b>doplněk stravy</b> (tablety, kapky,
+          sirup). Doplňky stravy nejsou v databázi léčiv SÚKL, a proto je tu nevypisujeme. Vybírejte
+          podle složení a obsahu účinných látek na obalu – s výběrem poradí lékárník.
+        </p>
+      ) : null}
+      {D.jvn?.[s.k]?.length ? (
+        <details className="jvn">
+          <summary>⚠️ Pozor, jen v názvu ({D.jvn[s.k]!.length})</summary>
+          <p className="note">
+            Tyto přípravky mají v názvu „{(s.cz.split(" (")[0] ?? s.cz).toLowerCase()}“, ale podle
+            registrace tuto rostlinu neobsahují.
+          </p>
+          <ul className="ph-list">
+            {D.jvn[s.k]!.slice(0, 12).map(([n, l]) => (
+              <li key={n}>
+                <b>{n}</b>
+                <span className="note">
+                  {" "}
+                  –{" "}
+                  {l.length
+                    ? `obsahuje ${l.join(", ")}`
+                    : "potravina pro zvláštní lékařské účely, jen příchuť"}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {D.jvn[s.k]!.length > 12 ? (
+            <p className="note">a dalších {D.jvn[s.k]!.length - 12}</p>
+          ) : null}
+        </details>
       ) : null}
     </section>
   );

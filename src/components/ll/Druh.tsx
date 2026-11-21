@@ -5,7 +5,17 @@ import { habitat, interestingTrad, processSteps, sourceIcons } from "@/lib/ll/di
 import { scrollToAnchor, takePendingAnchor } from "@/lib/ll/jump";
 import { useApp } from "@/lib/ll/store";
 import { AbsList, GeneralAlerts, IxList, StudyItem, UseItem, WarnAlert } from "./common";
-import { EvidenceCard, FactTiles, FormsAbsorb, HeadCard, MonthCard, Sec } from "./DruhHead";
+import {
+  EvidenceCard,
+  FactTiles,
+  FormsAbsorb,
+  HeadCard,
+  MonthBar,
+  MonthLegend,
+  Sec,
+} from "./DruhHead";
+import { LIGHT_TXT, careText, gardenPrice } from "@/lib/ll/garden";
+import { growInfo } from "@/lib/ll/display";
 
 const ABS_LABELS: Record<string, string> = {
   clinical_trial: "Studie na lidech",
@@ -173,6 +183,32 @@ export function Druh({ k }: { k: string }) {
   const pz = D.poznat?.[k];
   const ixRisk = ixItems.filter((x) => x.t == "R" || x.t == "Z");
   const steps = processSteps(k);
+  const g = D.garden[k];
+  const gi = growInfo(k);
+  const growable = !!g && !!gi && gi.lvl != "N";
+  const noun = s.kat == "houba" ? "houbu" : "bylinu";
+  const stepsTitle = growable
+    ? `Jak zpracovat doma vypěstovanou ${noun}`
+    : D.hab?.[k] == "W"
+      ? `Jak zpracovat nasbíranou ${noun}`
+      : `Jak ${noun} zpracovat`;
+  const stepsList = (
+    <ol className="steps">
+      {steps.map((st) => (
+        <li key={st.t}>
+          <span className="step-ic" aria-hidden="true">
+            {st.ic}
+          </span>
+          <div>
+            <b>{st.t}</b>
+            {st.d.split("\n").map((l, i) => (
+              <p key={i}>{l}</p>
+            ))}
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
   const srcIc = u ? sourceIcons(u[4]) : [];
 
   // Arriving from a list with a chosen form (e.g. tapping "Nálev"): scroll straight to it.
@@ -196,8 +232,8 @@ export function Druh({ k }: { k: string }) {
         extra={
           <>
             {w.some((x) => x.meds?.length) ? (
-              <div className="alert crit">
-                <b>Možný střet s vašimi léky</b> – {toPozor}.
+              <div className="alert ix-warn">
+                ⚠️ <b>Možný střet s vašimi léky</b> – {toPozor}.
               </div>
             ) : w.some((x) => x.hit) ? (
               <div className="alert crit">
@@ -215,7 +251,6 @@ export function Druh({ k }: { k: string }) {
       <GeneralAlerts />
       <EvidenceCard k={k} />
       {s.formy && s.formy.length ? <FormsAbsorb s={s} /> : null}
-      <MonthCard k={k} fungus={s.kat == "houba"} />
       <FactTiles k={k} w={w} risks={risk.length + (lt && lt.u != "bezpecne" ? 1 : 0)} />
       <hr className="sep" />
       {tr.length && interestingTrad(k, tr) ? (
@@ -306,8 +341,46 @@ export function Druh({ k }: { k: string }) {
           ) : null}
         </Sec>
       ) : null}
+      {growable && g && gi ? (
+        <Sec icon="🌱" title="Pěstování v ČR" id="pestovani">
+          <div className="rows">
+            <div className="row">
+              <span>Náročnost</span>
+              <span className={`gl-${gi.lvl}`}>
+                <b>{gi.label}</b>
+              </span>
+            </div>
+            <div className="row stack">{gi.text}</div>
+            <div className="row">
+              <span>Místo</span>
+              <span>{LIGHT_TXT[g[2]] ?? "dle druhu"}</span>
+            </div>
+            {g[7] ? <div className="row stack">{g[7]}</div> : null}
+            <div className="row stack">{careText(g)}</div>
+            <div className="row">
+              <span>Orientační cena</span>
+              <span>
+                {gardenPrice(k).od}–{gardenPrice(k).do} Kč ({gardenPrice(k).co})
+              </span>
+            </div>
+          </div>
+          <h4 className="fgrp">Kdy zasít a kdy sklízet</h4>
+          <MonthBar sow={g[4]} harvest={g[5].length ? g[5] : D.months[k] || []} />
+          <MonthLegend />
+          {g[6] ? <p className="mleg">Sklízí se: {g[6]}</p> : null}
+          {steps.length ? (
+            <>
+              <h4 className="fgrp">{stepsTitle}</h4>
+              {stepsList}
+              <p className="note">
+                Obecný postup – dávky a časy přípravy si ověřte u lékárníka nebo bylinkáře.
+              </p>
+            </>
+          ) : null}
+        </Sec>
+      ) : null}
       {u ? (
-        <Sec icon="🧺" title="Kde sehnat a jak zpracovat">
+        <Sec icon="🧺" title={growable ? "Kde sehnat" : "Kde sehnat a jak zpracovat"}>
           <h4 className="fgrp">Kde sehnat</h4>
           {srcIc.length ? (
             <div className="src-ic">
@@ -319,26 +392,15 @@ export function Druh({ k }: { k: string }) {
             </div>
           ) : null}
           <p className="mt-1">{u[4]}</p>
-          {steps.length ? <h4 className="fgrp">Jak zpracovat</h4> : null}
-          <ol className="steps">
-            {steps.map((st) => (
-              <li key={st.t}>
-                <span className="step-ic" aria-hidden="true">
-                  {st.ic}
-                </span>
-                <div>
-                  <b>{st.t}</b>
-                  {st.d.split("\n").map((l, i) => (
-                    <p key={i}>{l}</p>
-                  ))}
-                </div>
-              </li>
-            ))}
-          </ol>
-          {steps.length ? (
-            <p className="note">
-              Obecný postup – dávky a časy přípravy si ověřte u lékárníka nebo v příbalovém letáku.
-            </p>
+          {!growable && steps.length ? (
+            <>
+              <h4 className="fgrp">{stepsTitle}</h4>
+              {stepsList}
+              <p className="note">
+                Obecný postup – dávky a časy přípravy si ověřte u lékárníka nebo v příbalovém
+                letáku.
+              </p>
+            </>
           ) : null}
         </Sec>
       ) : null}

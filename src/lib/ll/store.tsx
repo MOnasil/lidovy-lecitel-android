@@ -11,6 +11,7 @@ import {
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { KEY_VYSADBA, type GardenMode, type Planting } from "./garden";
+import { sessionExpired } from "./session";
 import { MED_PREFIX } from "./meds";
 
 // Signed out: profile, "Co mám doma" list and theme live only in this browser (localStorage);
@@ -28,6 +29,9 @@ export const AVATAR_PREFIX = "avatar:";
 const KEY_FAV_MOVED = "ll-fav-presunuto";
 export type Vysadba = Record<string, Planting>;
 const KEY_THEME = "ll-theme";
+/** Medicines of a signed-out user (moved to the account on sign-in). */
+const KEY_MEDS = "ll-leky";
+const KEY_MEDS_OTHER = "ll-leky-jine";
 
 function read<T>(k: string, d: T): T {
   try {
@@ -120,6 +124,7 @@ type Ctx = {
   /** Chosen profile picture key ("" = none). */
   avatar: string;
   setAvatar: (a: string) => void;
+  resetData: () => Promise<boolean>;
   theme: Theme;
   setTheme: (t: Theme) => void;
 };
@@ -148,6 +153,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   // Read browser-only data after hydration so server and client render the same first frame.
   useEffect(() => {
     setFlags(new Set(read<string[]>(KEY_PROFILE, [])));
+    setMedsState(read<string[]>(KEY_MEDS, []));
+    setMedsOther(read<string>(KEY_MEDS_OTHER, ""));
     setDoma(read<string[]>(KEY_DOMA, []));
     setVysState(read<Vysadba>(KEY_VYSADBA, {}));
     setThemeState(read<Theme>(KEY_THEME, "light"));
@@ -160,8 +167,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       if (!user) {
         uid.current = null;
         setAccount(null);
-        setMedsState([]);
-        setMedsOther("");
+        setMedsState(read<string[]>(KEY_MEDS, []));
+        setMedsOther(read<string>(KEY_MEDS_OTHER, ""));
         setFlags(new Set(read<string[]>(KEY_PROFILE, [])));
         return;
       }
@@ -200,12 +207,29 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       const metaAv = String(user.user_metadata?.["avatar"] ?? "");
       if (metaAv && ![...fl].some((f) => f.startsWith(AVATAR_PREFIX))) {
         fl.add(AVATAR_PREFIX + metaAv);
-        void supabase.from("profiles").update({ flags: [...fl] }).eq("id", user.id);
+        void supabase
+          .from("profiles")
+          .update({ flags: [...fl] })
+          .eq("id", user.id);
       }
       setFlags(fl);
-      setMedsState(row?.meds ?? []);
-      setMedsOther(row?.meds_other ?? "");
+      // medicines entered before signing in move to the account
+      let meds = row?.meds ?? [];
+      let other = row?.meds_other ?? "";
+      const lm = read<string[]>(KEY_MEDS, []);
+      const lo = read<string>(KEY_MEDS_OTHER, "");
+      if ((lm.length && !meds.length) || (lo && !other)) {
+        meds = meds.length ? meds : lm;
+        other = other || lo;
+        void supabase.from("profiles").update({ meds, meds_other: other }).eq("id", user.id);
+        write(KEY_MEDS, []);
+        write(KEY_MEDS_OTHER, "");
+      }
+      setMedsState(meds);
+      setMedsOther(other);
     }
+    // "Zůstat přihlášen" was unticked and the app has been closed since: end the session.
+    if (sessionExpired()) void supabase.auth.signOut({ scope: "local" });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event == "TOKEN_REFRESHED") return;
       // Defer: Supabase calls made inside this callback can deadlock the auth client.
@@ -225,6 +249,32 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     return !error;
   }, []);
 
+  /** "Vymazat moje data": everything the user entered except account, name, picture and theme. */
+  const resetData = useCallback(async () => {
+    const keep = [...flags].filter((f) => f.startsWith(AVATAR_PREFIX));
+    setFlags(new Set(keep));
+    setMedsState([]);
+    setMedsOther("");
+    setDoma([]);
+    setVysState({});
+    setUIState(INITIAL);
+    for (const k of [
+      KEY_DOMA,
+      KEY_VYSADBA,
+      KEY_MEDS,
+      KEY_MEDS_OTHER,
+      "ll-zahrada-upravy",
+      "ll-notif",
+    ])
+      try {
+        localStorage.removeItem(k);
+      } catch {
+        /* storage unavailable */
+      }
+    write(KEY_PROFILE, keep);
+    if (uid.current) return saveRow({ flags: keep, meds: [], meds_other: "" });
+    return true;
+  }, [flags, saveRow]);
   const setUI = useCallback<Ctx["setUI"]>((patch) => {
     setUIState((s) => ({ ...s, ...(typeof patch == "function" ? patch(s) : patch) }));
   }, []);
@@ -244,13 +294,15 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const setMeds = useCallback(
     (m: string[]) => {
       setMedsState(m);
-      void saveRow({ meds: m });
+      if (uid.current) void saveRow({ meds: m });
+      else write(KEY_MEDS, m);
     },
     [saveRow],
   );
   const saveMedsOther = useCallback(
     (t: string) => {
       setMedsOther(t);
+      if (!uid.current) write(KEY_MEDS_OTHER, t.slice(0, 1000));
       void saveRow({ meds_other: t.slice(0, 1000) });
     },
     [saveRow],
@@ -353,6 +405,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       setVys,
       avatar,
       setAvatar,
+      resetData,
       theme,
       setTheme,
     }),
@@ -377,6 +430,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       setVys,
       avatar,
       setAvatar,
+      resetData,
       theme,
       setTheme,
     ],

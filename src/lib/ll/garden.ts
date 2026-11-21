@@ -146,7 +146,7 @@ export function monthsUntil(months: number[], m: number): number {
   return Math.min(...months.map((x) => (x - m + 12) % 12));
 }
 
-const LIGHT_TXT: Record<string, string> = {
+export const LIGHT_TXT: Record<string, string> = {
   S: "slunné místo",
   SP: "slunce až polostín",
   P: "polostín",

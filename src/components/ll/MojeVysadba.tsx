@@ -294,10 +294,10 @@ export function MojeVysadba({
                         value={r.g}
                         onChange={(e) => change(r, e.target.value)}
                       >
-                        <option value="doma">🏠 doma</option>
-                        {D.garden[r.k] ? <option value="vysazeno">🌱 pěstuji</option> : null}
-                        {D.garden[r.k] ? <option value="plan">📝 plán</option> : null}
-                        <option value="x">✕ odebrat</option>
+                        <option value="doma">🏠 Mám doma</option>
+                        {D.garden[r.k] ? <option value="vysazeno">🌱 Pěstuji</option> : null}
+                        {D.garden[r.k] ? <option value="plan">📝 Budu pěstovat</option> : null}
+                        <option value="x">✕ Odebrat</option>
                       </select>
                     </td>
                   </tr>
