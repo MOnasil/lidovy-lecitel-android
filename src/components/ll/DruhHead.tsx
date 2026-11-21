@@ -3,6 +3,7 @@ import { D, GL, HUM, SP, TOP, grade, score, studies, type Warn } from "@/lib/ll/
 import { ABSORB } from "@/lib/ll/absorb";
 import {
   PRICE_KC,
+  formSources,
   growInfo,
   pharmacyItems,
   pharmacyText,
@@ -154,9 +155,6 @@ function HeadPic({ k }: { k: string }) {
 }
 
 /** Longer description: first sentence visible, the rest behind "více ▾". */
-function MoreText({ t }: { t: string }) {
-  return <p className="hd-more">{t}</p>;
-}
 
 /** Photo credit line (required by the photo licences). */
 export function PhotoCredit({ k }: { k: string }) {
@@ -286,12 +284,16 @@ export function HeadCard({ s, extra }: { s: Species; extra?: React.ReactNode }) 
           </div>
         ) : null}
         <div className="hd-txt">
-          <p className="hd-desc">{s.popis}</p>
+          <p className="hd-desc">
+            {[s.popis, D.zaj?.[s.k]]
+              .filter(Boolean)
+              .map((t) => t!.trim().replace(/([^.!?…])$/, "$1."))
+              .join(" ")}
+          </p>
           {s.ln && s.ln.length ? <p className="hd-ln">Lidově: {s.ln.join(", ")}</p> : null}
         </div>
         <FormIcons s={s} jump />
       </div>
-      {D.zaj?.[s.k] ? <MoreText t={D.zaj[s.k]!} /> : null}
       <HeadFacts k={s.k} />
       {u && (u[1] || u[2]) ? (
         <div className="hd-when">
@@ -504,6 +506,13 @@ export function FormsAbsorb({ s }: { s: Species }) {
         <div>
           <b className="fa-n">{F[0]}</b>
           <p>{F[1]}</p>
+          <div className="fa-src">
+            {formSources(s.k, f).map((x) => (
+              <span key={x.t} className="src-chip">
+                <span aria-hidden="true">{x.ic}</span> {x.t}
+              </span>
+            ))}
+          </div>
           <div className="fa-ab">
             <span className={`ameter sm a${a[0]}`} aria-hidden="true">
               <i />

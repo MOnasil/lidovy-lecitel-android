@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { D, HUM, SP, U, kat, rank, studies, warns, fmt } from "@/lib/ll/data";
-import { habitat, interestingTrad, processSteps, sourceIcons } from "@/lib/ll/display";
+import { habitat, interestingTrad, processSteps } from "@/lib/ll/display";
 import { scrollToAnchor, takePendingAnchor } from "@/lib/ll/jump";
 import { useApp } from "@/lib/ll/store";
 import { riskOf } from "@/lib/ll/risks";
@@ -193,6 +193,27 @@ function PrevNext({ k }: { k: string }) {
   );
 }
 
+/** "Babské léčitelství": compact, the first three uses with the rest on request. */
+function TradBox({ tr }: { tr: Parameters<typeof UseItem>[0]["t"][] }) {
+  const [all, setAll] = useState(false);
+  const shown = all ? tr : tr.slice(0, 3);
+  return (
+    <section className="card-l trad-box">
+      <h3 className="cl-h">👵 Babské léčitelství</h3>
+      <div className="uses">
+        {shown.map((t, i) => (
+          <UseItem key={i} t={t} />
+        ))}
+      </div>
+      {tr.length > shown.length ? (
+        <button type="button" className="chip sm" onClick={() => setAll(true)}>
+          Zobrazit další ({tr.length - shown.length})
+        </button>
+      ) : null}
+    </section>
+  );
+}
+
 export function Druh({ k }: { k: string }) {
   const { prof } = useApp();
   const s = SP[k]!;
@@ -243,7 +264,6 @@ export function Druh({ k }: { k: string }) {
       ))}
     </ol>
   );
-  const srcIc = u ? sourceIcons(u[4]) : [];
 
   // Arriving from a list with a chosen form (e.g. tapping "Nálev"): scroll straight to it.
   useEffect(() => {
@@ -294,16 +314,7 @@ export function Druh({ k }: { k: string }) {
       {s.formy && s.formy.length ? <FormsAbsorb s={s} /> : null}
       <FactTiles k={k} w={w} risks={risk.length + (lt && lt.u != "bezpecne" ? 1 : 0)} />
       <hr className="sep" />
-      {tr.length && interestingTrad(k, tr) ? (
-        <section className="card-l">
-          <h3 className="cl-h">👵 Babské léčitelství</h3>
-          <div className="uses">
-            {tr.map((t, i) => (
-              <UseItem key={i} t={t} />
-            ))}
-          </div>
-        </section>
-      ) : null}
+      {tr.length && interestingTrad(k, tr) ? <TradBox tr={tr} /> : null}
       <Sec icon="📍" title={pz ? "Kde roste a jak poznat" : "Kde roste"} id="kde">
         {hab ? (
           <p className={`hab-tag hab-${hab.ic == "🌳" ? "W" : (D.hab?.[k] ?? "x")}`}>
@@ -421,44 +432,14 @@ export function Druh({ k }: { k: string }) {
         </Sec>
       ) : null}
       {u ? (
-        <Sec icon="🧺" title={growable ? "Kde sehnat" : "Kde sehnat a jak zpracovat"}>
-          <h4 className="fgrp">Kde sehnat</h4>
-          {srcIc.length ? (
-            <div className="src-ic">
-              {srcIc.map((x) => (
-                <span key={x.t} className="src-chip">
-                  <span aria-hidden="true">{x.ic}</span> {x.t}
-                </span>
-              ))}
-            </div>
-          ) : null}
-          <p className="mt-1">{u[4]}</p>
-          {growable ? (
-            <>
-              <h4 className="fgrp">{growTitle}</h4>
-              <p>
-                Dá se vypěstovat i doma.{" "}
-                <button
-                  type="button"
-                  className="linkish"
-                  onClick={() => scrollToAnchor("pestovani")}
-                >
-                  Jak pěstovat a zpracovat úrodu ›
-                </button>
-              </p>
-            </>
-          ) : null}
-          {!growable && steps.length ? (
-            <>
-              <h4 className="fgrp">{stepsTitle}</h4>
-              {stepsList}
-              <p className="note">
-                Obecný postup – dávky a časy přípravy si ověřte u lékárníka nebo v příbalovém
-                letáku.
-              </p>
-            </>
-          ) : null}
-        </Sec>
+        !growable && steps.length ? (
+          <Sec icon="🧺" title={stepsTitle}>
+            {stepsList}
+            <p className="note">
+              Obecný postup – dávky a časy přípravy si ověřte u lékárníka nebo v příbalovém letáku.
+            </p>
+          </Sec>
+        ) : null
       ) : null}
       {absItems && absItems.length ? (
         <Sec icon="🔬" title="Studie o vstřebatelnosti" n={absItems.length}>

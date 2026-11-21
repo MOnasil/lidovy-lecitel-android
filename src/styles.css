@@ -878,4 +878,51 @@
   /* gdpr page */
   .gdpr h3 { margin-top: 14px; }
   .gdpr ul { padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+
+  /* ---- 2026-11-21 večer ---- */
+  .rec-top .thumb { width: 76px; height: 76px; border-radius: 12px; }
+  .rec-top .who h3 { font-size: 1.2rem; line-height: 1.2; }
+  .rec .rec-top { margin-bottom: 0; }
+  .rec > .mine-btns { margin: -2px 0 2px; }
+  .rec.home { border: 3px solid #3b6d11; border-left-width: 7px; box-shadow: 0 0 0 1px #97c459 inset; }
+  .tile-w.home .tile { border: 3px solid #3b6d11; box-shadow: 0 0 0 1px #97c459 inset; }
+  .fa-src { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0; }
+  .fa-src .src-chip { font-size: .74rem; padding: 2px 8px; }
+  .trad-box { padding: 10px 12px; }
+  .trad-box .cl-h { font-size: 1rem; margin-bottom: 6px; padding-bottom: 4px; }
+  .trad-box .uses { gap: 6px; }
+  .trad-box .use { font-size: .88rem; padding: 2px 0 2px 10px; color: var(--foreground); }
+  .trad-box .use p, .trad-box .use .note { color: var(--muted-foreground); }
+  .trad-box > .chip { margin-top: 8px; }
+  .prof-strip { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: .86rem; margin: 8px 0 4px; padding: 6px 10px; border-radius: 10px; background: var(--accent); }
+  .prof-tip { display: flex; gap: 10px; align-items: center; justify-content: space-between; font-size: .86rem; margin: 8px 0 4px; padding: 8px 10px; border-radius: 10px; background: #faeeda; color: #633806; border: 1px solid #fac775; }
+  .dark .prof-tip { background: #412402; color: #fac775; border-color: #854f0b; }
+  .prof-tip .btn.sm { padding: 5px 12px; font-size: .82rem; }
+  .x-btn { border: 0; background: none; font-size: 1rem; cursor: pointer; color: inherit; padding: 2px 6px; }
+  .mtab { display: flex; flex-direction: column; border: 1.5px solid var(--border); border-radius: 12px; overflow: hidden; margin-top: 8px; }
+  .mt-row { display: flex; align-items: center; gap: 4px; border-top: 1px solid var(--border); padding-right: 4px; }
+  .mt-row.mt-head { border-top: 0; background: var(--accent); font-size: .76rem; font-weight: 800; color: var(--muted-foreground); padding: 6px 10px; justify-content: space-between; }
+  .mt-row.on { background: var(--accent); }
+  .mt-main { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 10px; border: 0; background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+  .mt-main:disabled { cursor: default; }
+  .mt-n { min-width: 0; display: flex; flex-direction: column; font-weight: 700; font-size: .92rem; }
+  .mt-n small { font-weight: 500; font-size: .72rem; color: var(--muted-foreground); }
+  .mt-cnt { flex: none; font-weight: 800; font-size: .82rem; border-radius: 999px; padding: 3px 10px; }
+  .mt-cnt.sev-r { background: #fcebeb; color: #a32d2d; }
+  .mt-cnt.sev-y { background: #faeeda; color: #854f0b; }
+  .dark .mt-cnt.sev-r { background: #501313; color: #f7c1c1; }
+  .dark .mt-cnt.sev-y { background: #412402; color: #fac775; }
+  .mt-tiles { padding: 4px 10px 10px; border-top: 1px dashed var(--border); }
+  .mt-add { margin-top: 10px; }
+  .uvod-bg { position: fixed; inset: 0; z-index: 70; background: rgb(0 0 0 / .5); display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .uvod { position: relative; width: 100%; max-width: 420px; background: var(--card); color: var(--foreground); border-radius: 20px; padding: 28px 22px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; box-shadow: 0 12px 40px rgb(0 0 0 / .3); }
+  .uvod-ic { font-size: 3.2rem; line-height: 1; }
+  .uvod h2 { margin: 4px 0 0; font-size: 1.35rem; }
+  .uvod p { margin: 0; font-size: .98rem; line-height: 1.45; }
+  .uvod-skip { position: absolute; top: 10px; right: 12px; border: 0; background: none; color: var(--muted-foreground); font: 600 .85rem var(--font-sans, inherit); cursor: pointer; }
+  .uvod-dots { display: flex; gap: 6px; margin: 6px 0; }
+  .uvod-dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+  .uvod-dots i.on { background: var(--primary); width: 20px; border-radius: 4px; }
+  .uvod-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; width: 100%; }
+  .uvod-btns .btn { flex: 1 1 140px; }
 }

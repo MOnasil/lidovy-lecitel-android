@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { CONDS, D, FLAGS, SP, norm } from "@/lib/ll/data";
 import { MED } from "@/lib/ll/meds";
@@ -14,9 +14,8 @@ import {
 } from "@/lib/ll/ixguide";
 import { photoUrl } from "@/lib/ll/photos";
 import { useApp } from "@/lib/ll/store";
-import { myRisks, type Risk } from "@/lib/ll/risks";
+import { myRisks, risksByItem, type Risk } from "@/lib/ll/risks";
 import { isKnownPlain } from "@/lib/ll/medsSukl";
-import { potizeOf } from "@/lib/ll/doporuceni";
 import { ZdraviLeky, ownMeds } from "./Profil";
 import { Sec } from "./DruhHead";
 import { AbsList, IxBadge, IxList, IX_T, SpeciesLink, cap1 } from "./common";
@@ -432,52 +431,100 @@ export function RiskTiles({ list, first = 8 }: { list: Risk[]; first?: number })
   );
 }
 
-/** Read-only overview of what the profile holds, with a way to edit it. */
-function ProfilChips() {
-  const { prof, meds, medsOther } = useApp();
+/** Table of the user's medicines and illnesses; each row opens the herbs it clashes with. */
+function MojeTabulka() {
+  const { prof, toggleProf, meds, setMeds, medsOther, saveMedsOther } = useApp();
+  const [open, setOpen] = useState<string | null>(null);
+  const by = useMemo(() => risksByItem(prof), [prof]);
   const own = ownMeds(medsOther);
-  const medN = meds.map((k) => MED[k]?.n).filter((x): x is string => !!x);
-  const conds = [
-    ...FLAGS.map(([k, n]) => ({ k, n })),
-    ...CONDS.map((c) => ({ k: c.k, n: c.n })),
-  ].filter((c) => prof.has(c.k) && c.k != "leky");
-  const pot = potizeOf(prof);
-  const short = (n: string) => {
-    const x = n.split(" (")[0]!;
-    return x.length > 34 ? x.slice(0, 32) + "…" : x;
+  type Row = {
+    id: string;
+    ic: string;
+    typ: string;
+    n: string;
+    list: Risk[] | null;
+    drop: () => void;
+  };
+  const rows: Row[] = [
+    ...meds
+      .filter((k) => MED[k])
+      .map((k) => ({
+        id: "m:" + k,
+        ic: "💊",
+        typ: "Lék",
+        n: MED[k]!.n,
+        list: by.get("med:" + MED[k]!.n) ?? [],
+        drop: () => setMeds(meds.filter((m) => m != k)),
+      })),
+    ...own.map((t) => ({
+      id: "o:" + t,
+      ic: "💊",
+      typ: "Lék",
+      n: t,
+      list: isKnownPlain(t) ? [] : null,
+      drop: () => saveMedsOther(own.filter((x) => x != t).join("\n")),
+    })),
+    ...[...FLAGS.map(([k, n]) => ({ k, n })), ...CONDS.map((c) => ({ k: c.k, n: c.n }))]
+      .filter((c) => c.k != "leky" && prof.has(c.k))
+      .map((c) => ({
+        id: "c:" + c.k,
+        ic: "🩺",
+        typ: "Nemoc",
+        n: c.n.split(" (")[0]!,
+        list: by.get(c.k) ?? [],
+        drop: () => toggleProf(c.k, false),
+      })),
+  ];
+  const label = (l: Risk[] | null) => {
+    if (l == null) return <span className="note">neznámý lék – zeptejte se lékárníka</span>;
+    if (!l.length) return <span className="note">známé střety nemáme</span>;
+    const red = l.some((r) => r.sev == "r");
+    const n = l.length;
+    return (
+      <span className={`mt-cnt sev-${red ? "r" : "y"}`}>
+        {red ? "🔴" : "🟡"} {n} {n == 1 ? "bylina" : n < 5 ? "byliny" : "bylin"} ▾
+      </span>
+    );
   };
   return (
-    <div className="pchips">
-      {medN.length || own.length ? (
-        <p>
-          <span className="pchips-h">💊 Léky</span>
-          {[...medN, ...own].map((n) => (
-            <span key={n} className="chip sm static">
-              {n}
-            </span>
-          ))}
-        </p>
-      ) : null}
-      {conds.length ? (
-        <p>
-          <span className="pchips-h">🩺 Nemoci a stavy</span>
-          {conds.map((c) => (
-            <span key={c.k} className="chip sm static">
-              {short(c.n)}
-            </span>
-          ))}
-        </p>
-      ) : null}
-      {pot.length ? (
-        <p>
-          <span className="pchips-h">😣 Co mě trápí</span>
-          {pot.map((p) => (
-            <span key={p.id} className="chip sm static">
-              {p.n}
-            </span>
-          ))}
-        </p>
-      ) : null}
+    <div className="mtab" role="table" aria-label="Moje léky a nemoci">
+      <div className="mt-row mt-head" role="row">
+        <span role="columnheader">Lék / nemoc</span>
+        <span role="columnheader">Střety s bylinami</span>
+        <span />
+      </div>
+      {rows.map((r) => (
+        <Fragment key={r.id}>
+          <div className={`mt-row${open == r.id ? " on" : ""}`} role="row">
+            <button
+              type="button"
+              className="mt-main"
+              aria-expanded={open == r.id}
+              disabled={!r.list?.length}
+              onClick={() => setOpen(open == r.id ? null : r.id)}
+            >
+              <span className="mt-n">
+                <span aria-hidden="true">{r.ic}</span> {r.n}
+                <small>{r.typ}</small>
+              </span>
+              {label(r.list)}
+            </button>
+            <button
+              type="button"
+              className="x-btn"
+              aria-label={`Odebrat ${r.n}`}
+              onClick={() => (r.drop(), open == r.id && setOpen(null))}
+            >
+              ✕
+            </button>
+          </div>
+          {open == r.id && r.list?.length ? (
+            <div className="mt-tiles">
+              <RiskTiles list={r.list} />
+            </div>
+          ) : null}
+        </Fragment>
+      ))}
     </div>
   );
 }
@@ -495,18 +542,13 @@ function MojeInterakce() {
   return (
     <>
       <section className="box">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2>Moje léky a zdraví</h2>
-          <span className="row-btns">
-            <button type="button" className="chip sm" onClick={() => setAdd((v) => !v)}>
-              {add ? "Hotovo" : "➕ Přidat"}
-            </button>
-            <Link to="/profil" className="chip sm">
-              Upravit v profilu
-            </Link>
-          </span>
+        <h2>Moje léky a zdraví</h2>
+        <MojeTabulka />
+        <div className="row-btns mt-add">
+          <button type="button" className="btn" onClick={() => setAdd((v) => !v)}>
+            {add ? "Hotovo" : "➕ Přidat do Mých léků"}
+          </button>
         </div>
-        <ProfilChips />
         {add ? <ZdraviLeky title="" compact /> : null}
       </section>
       <section className="box ix-box">

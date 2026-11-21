@@ -1,7 +1,9 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import {
+  CONDS,
   D,
+  FLAGS,
   NM,
   RED,
   SP,
@@ -24,6 +26,8 @@ import {
   warns,
 } from "@/lib/ll/data";
 import { understand } from "@/lib/ll/understand";
+import { MED } from "@/lib/ll/meds";
+import { ownMeds } from "./Profil";
 import { useApp, type UIState } from "@/lib/ll/store";
 import type { Grade, Species, Study } from "@/lib/ll/types";
 import {
@@ -143,7 +147,6 @@ function RecCard({
         open();
       }}
     >
-      {home ? <div className="home-badge">🏠 Máte doma</div> : null}
       {cover ? (
         <div className="eyebrow cover">{cover}</div>
       ) : feat ? (
@@ -176,6 +179,75 @@ function RecCard({
         </SpeciesLink>
       </div>
     </article>
+  );
+}
+
+const KEY_HINT = "ll-tip-profil";
+/** What the profile holds (medicines, illnesses), or a nudge to fill it in. */
+function ProfilStrip() {
+  const { prof, meds, medsOther } = useApp();
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => {
+    try {
+      setHidden(localStorage.getItem(KEY_HINT) == "1");
+    } catch {
+      /* storage blocked */
+    }
+  }, []);
+  const medN = [
+    ...meds.map((k) => MED[k]?.n.split(" (")[0]).filter((x): x is string => !!x),
+    ...ownMeds(medsOther),
+  ];
+  const conds = [...FLAGS.map(([k, n]) => ({ k, n })), ...CONDS.map((c) => ({ k: c.k, n: c.n }))]
+    .filter((c) => c.k != "leky" && prof.has(c.k))
+    .map((c) => c.n.split(" (")[0]!);
+  if (medN.length || conds.length)
+    return (
+      <p className="prof-strip">
+        {medN.length ? (
+          <span>
+            💊 <b>Vaše léky:</b> {medN.join(", ")}
+          </span>
+        ) : null}
+        {conds.length ? (
+          <span>
+            🩺 {conds.slice(0, 4).join(", ")}
+            {conds.length > 4 ? "…" : ""}
+          </span>
+        ) : null}
+        <Link to="/interakce" className="linkish">
+          Upravit
+        </Link>
+      </p>
+    );
+  if (hidden) return null;
+  return (
+    <div className="prof-tip">
+      <span>
+        💡 Vyplňte si nemoci a léky, které užíváte. Pak u bylin upozorníme, které pro vás nejsou
+        vhodné nebo se nesnesou s vašimi léky.
+      </span>
+      <span className="row-btns">
+        <Link to="/interakce" className="btn sm">
+          Vyplnit
+        </Link>
+        <button
+          type="button"
+          className="x-btn"
+          aria-label="Skrýt upozornění"
+          onClick={() => {
+            setHidden(true);
+            try {
+              localStorage.setItem(KEY_HINT, "1");
+            } catch {
+              /* storage blocked */
+            }
+          }}
+        >
+          ✕
+        </button>
+      </span>
+    </div>
   );
 }
 
@@ -467,6 +539,7 @@ export function Poradce() {
         />
         <button className="btn">Vyhledat</button>
       </form>
+      <ProfilStrip />
       <PackedChips
         className={sel ? "chips" : "chips packed"}
         items={[

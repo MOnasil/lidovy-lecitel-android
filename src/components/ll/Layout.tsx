@@ -1,5 +1,6 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Komentar } from "./Komentar";
+import { Uvod } from "./Uvod";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { SP } from "@/lib/ll/data";
 import { avatarSrc } from "@/lib/ll/avatars";
@@ -9,9 +10,9 @@ import { Welcome } from "./Welcome";
 const NAV = [
   { to: "/", label: "Co mě trápí", exact: true },
   { to: "/atlas", label: "Atlas" },
-  { to: "/interakce", label: "Interakce" },
-  { to: "/lekarnik", label: "Rada lékárníka" },
+  { to: "/interakce", label: "Moje léky" },
   { to: "/zahradka", label: "Moje zahrádka" },
+  { to: "/lekarnik", label: "Rada lékárníka" },
 ] as const;
 
 const LEGACY: Record<string, string> = {
@@ -262,7 +263,12 @@ export function Layout({ children }: { children: ReactNode }) {
       <header className="site-header">
         <div className="bar">
           <div className="brand">
-            <Link to="/" className="brand-link" aria-label="Lidový léčitel – úvod">
+            <Link
+              to="/"
+              className="brand-link"
+              aria-label="Lidový léčitel – úvod"
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            >
               <Logo />
               <span className="brand-t">
                 <h1>Lidový léčitel</h1>
@@ -303,6 +309,7 @@ export function Layout({ children }: { children: ReactNode }) {
           bylin s lékárníkem.
         </p>
       </div>
+      <Uvod />
       {zoom ? (
         <Lightbox
           list={zoom.list}

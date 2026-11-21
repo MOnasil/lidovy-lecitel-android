@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { CONDS, D, FLAGS, NM, SP, TP, fmt, norm } from "@/lib/ll/data";
 import { myRisks } from "@/lib/ll/risks";
+import { showIntroAgain } from "./Uvod";
 import {
   AVATAR_PRESETS,
   avatarSrc,
@@ -562,7 +563,10 @@ export function Profil() {
           článků. Zobrazuje jen to, co studie naznačují, a to, co se tradičně používá – nic z toho
           není lékařské doporučení.
         </p>
-        <p>
+        <p className="row-btns">
+          <button type="button" className="linkish" onClick={showIntroAgain}>
+            Jak aplikace funguje
+          </button>
           <Link to="/soukromi">Ochrana osobních údajů (GDPR)</Link>
         </p>
         {isApp() ? (

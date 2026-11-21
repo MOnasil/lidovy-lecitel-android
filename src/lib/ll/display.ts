@@ -283,6 +283,64 @@ export function sourceIcons(text: string): { ic: string; t: string }[] {
   return SOURCE_ICONS.filter(([rx]) => rx.test(text)).map(([, ic, t]) => ({ ic, t }));
 }
 
+/** Where each form of use can be bought or got; home forms add growing / gathering from "Kde sehnat". */
+const FORM_SRC: Record<string, { ic: string; t: string }[]> = {
+  kapsle: [
+    { ic: "💊", t: "lékárna" },
+    { ic: "🧴", t: "drogerie" },
+    { ic: "🛒", t: "e-shop" },
+  ],
+  extrakt: [
+    { ic: "💊", t: "lékárna" },
+    { ic: "🛒", t: "e-shop" },
+  ],
+  tinktura: [
+    { ic: "💊", t: "lékárna" },
+    { ic: "🌿", t: "bylinkářství" },
+    { ic: "🛒", t: "e-shop" },
+  ],
+  sirup: [
+    { ic: "💊", t: "lékárna" },
+    { ic: "🧴", t: "drogerie" },
+  ],
+  olej: [
+    { ic: "💊", t: "lékárna" },
+    { ic: "🧴", t: "drogerie" },
+    { ic: "🛒", t: "e-shop" },
+  ],
+  prasek: [
+    { ic: "🌿", t: "bylinkářství" },
+    { ic: "🛒", t: "e-shop" },
+  ],
+  caj: [
+    { ic: "💊", t: "lékárna" },
+    { ic: "🌿", t: "bylinkářství" },
+  ],
+  odvar: [
+    { ic: "💊", t: "lékárna" },
+    { ic: "🌿", t: "bylinkářství" },
+  ],
+  odvarb: [
+    { ic: "💊", t: "lékárna" },
+    { ic: "🌿", t: "bylinkářství" },
+  ],
+  tinkb: [{ ic: "🌿", t: "bylinkářství" }],
+  koreni: [{ ic: "🥬", t: "obchod" }],
+  jidlo: [{ ic: "🥬", t: "obchod" }],
+  zevne: [{ ic: "💊", t: "lékárna" }],
+};
+const HOME_FORMS = new Set(["caj", "odvar", "odvarb", "tinkb", "koreni", "jidlo", "zevne"]);
+export function formSources(k: string, f: string): { ic: string; t: string }[] {
+  const kde = String(U(k)?.[4] ?? "");
+  const out = [...(FORM_SRC[f] ?? [])];
+  const found = sourceIcons(kde);
+  if (found.some((x) => x.t == "včelaři")) out.unshift({ ic: "🐝", t: "včelaři" });
+  if (HOME_FORMS.has(f))
+    for (const x of found) if (x.t == "pěstování" || x.t == "příroda") out.push(x);
+  const seen = new Set<string>();
+  return out.filter((x) => !seen.has(x.t) && (seen.add(x.t), true));
+}
+
 /* ---------- Jak zpracovat: steps from the data the app already has ---------- */
 export type ProcStep = { ic: string; t: string; d: string };
 const sentences = (t: string) => t.split(/(?<=\.)\s+/).filter(Boolean);

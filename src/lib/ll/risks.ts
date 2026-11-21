@@ -48,3 +48,35 @@ export function myRisks(prof: ReadonlySet<string>): Risk[] {
       Number(b.sev == "r") - Number(a.sev == "r") || SP[a.k]!.cz.localeCompare(SP[b.k]!.cz, "cs"),
   );
 }
+
+/**
+ * Clashes grouped by what causes them: a medicine name (as in `MED[k].n`) or a profile flag /
+ * condition key. Each list holds the herbs concerned, serious first.
+ */
+export function risksByItem(prof: ReadonlySet<string>): Map<string, Risk[]> {
+  const out = new Map<string, Risk[]>();
+  const add = (key: string, r: Risk) => {
+    const l = out.get(key) ?? [];
+    const prev = l.find((x) => x.k == r.k);
+    if (!prev) l.push(r);
+    else if (r.sev == "r" && prev.sev != "r") Object.assign(prev, r);
+    out.set(key, l);
+  };
+  for (const s of D.species) {
+    if (s.k == "houby") continue;
+    for (const w of warns(s.k, prof)) {
+      if (!w.hit) continue;
+      const base = { k: s.k, sev: sevOf(w.t), t: w.t };
+      for (const m of w.meds ?? []) add("med:" + m, { ...base, why: m });
+      if (w.f != "*" && prof.has(w.f)) add(w.f, { ...base, why: "" });
+      const low = w.t.toLowerCase();
+      for (const c of CONDS) if (prof.has(c.k) && c.rx.test(low)) add(c.k, { ...base, why: "" });
+    }
+  }
+  for (const l of out.values())
+    l.sort(
+      (a, b) =>
+        Number(b.sev == "r") - Number(a.sev == "r") || SP[a.k]!.cz.localeCompare(SP[b.k]!.cz, "cs"),
+    );
+  return out;
+}

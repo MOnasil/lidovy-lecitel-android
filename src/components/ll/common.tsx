@@ -143,17 +143,17 @@ export function HowShort({ k }: { k: string }) {
 export const FBUY = ["kapsle", "extrakt", "tinktura", "sirup", "prasek", "olej"];
 export const FICON: Record<string, string> = {
   caj: "🍵",
-  odvar: "🫖",
-  odvarb: "🫖",
+  odvar: "☕",
+  odvarb: "☕",
   tinkb: "💧",
   tinktura: "💧",
   zevne: "🩹",
-  sirup: "🥄",
-  koreni: "🧂",
+  sirup: "🍯",
+  koreni: "🌶️",
   kapsle: "💊",
   extrakt: "💊",
   olej: "🫒",
-  prasek: "🥄",
+  prasek: "🥣",
   jidlo: "🥗",
 };
 

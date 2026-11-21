@@ -9,7 +9,7 @@ const KEY = "sb_publishable_UkQxWREkssCLUI4pFQ3MkQ_u4q1pgpt";
 const PAGES: Record<string, string> = {
   "/": "Co mě trápí",
   "/atlas": "Atlas",
-  "/interakce": "Interakce",
+  "/interakce": "Moje léky",
   "/lekarnik": "Rada lékárníka",
   "/zahradka": "Moje zahrádka",
   "/profil": "Můj profil",

@@ -97,7 +97,7 @@ export function Atlas() {
             const p = photo(s.k);
             const r = riskOf(s.k, prof);
             return (
-              <div key={s.k} className="tile-w">
+              <div key={s.k} className={`tile-w${doma.includes(s.k) ? " home" : ""}`}>
                 <SpeciesLink k={s.k} className="tile">
                   {p ? <img src={p} alt="" loading="lazy" width={480} height={360} /> : null}
                   {r ? (
