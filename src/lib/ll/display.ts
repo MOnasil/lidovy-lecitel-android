@@ -327,8 +327,13 @@ const FORM_SRC: Record<string, { ic: string; t: string }[]> = {
   tinkb: [{ ic: "🌿", t: "bylinkářství" }],
   koreni: [{ ic: "🥬", t: "obchod" }],
   jidlo: [{ ic: "🥬", t: "obchod" }],
-  zevne: [{ ic: "💊", t: "lékárna" }],
+  zevne: [{ ic: "🌿", t: "bylinkářství" }],
 };
+/** A home form bought ready-made (registered tea, ointment…) is sold in pharmacies. */
+export const READY_SRC = [
+  { ic: "💊", t: "lékárna" },
+  { ic: "🛒", t: "e-shop" },
+];
 const HOME_FORMS = new Set(["caj", "odvar", "odvarb", "tinkb", "koreni", "jidlo", "zevne"]);
 export function formSources(k: string, f: string): { ic: string; t: string }[] {
   const kde = String(U(k)?.[4] ?? "");

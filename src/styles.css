@@ -925,4 +925,13 @@
   .uvod-dots i.on { background: var(--primary); width: 20px; border-radius: 4px; }
   .uvod-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; width: 100%; }
   .uvod-btns .btn { flex: 1 1 140px; }
+  .site-main.slide-l { animation: slideL .22s ease-out; }
+  .site-main.slide-r { animation: slideR .22s ease-out; }
+  @keyframes slideL { from { opacity: .5; transform: translateX(28%); } to { opacity: 1; transform: none; } }
+  @keyframes slideR { from { opacity: .5; transform: translateX(-28%); } to { opacity: 1; transform: none; } }
+  .wrap, .site { overflow-x: clip; }
+  .quick-meds { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+  .quick-home { margin-top: 8px; }
+  .uvod-later { width: 100%; text-align: center; margin-top: 2px; }
+  @media (prefers-reduced-motion: reduce) { .site-main.slide-l, .site-main.slide-r { animation: none; } }
 }

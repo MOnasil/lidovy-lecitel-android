@@ -3,6 +3,7 @@ import { D, GL, HUM, SP, TOP, grade, score, studies, type Warn } from "@/lib/ll/
 import { ABSORB } from "@/lib/ll/absorb";
 import {
   PRICE_KC,
+  READY_SRC,
   formSources,
   growInfo,
   pharmacyItems,
@@ -489,25 +490,37 @@ export function FactTiles({ k, w, risks }: { k: string; w: Warn[]; risks: number
 }
 
 /** "Možnosti použití a jak se vstřebají": forms split into buy / make at home, each with an absorption meter. */
+/** Name of a home form when bought ready-made. */
+const READY_NAME: Record<string, string> = {
+  caj: "Porcovaný čaj",
+  odvar: "Čaj",
+  odvarb: "Čaj",
+  tinkb: "Tinktura",
+  zevne: "Mast nebo gel",
+};
+
 export function FormsAbsorb({ s }: { s: Species }) {
   const byAbs = (a: string, b: string) => (FABS[b]?.[0] ?? 2) - (FABS[a]?.[0] ?? 2);
   const ph = pharmacyItems(s.k, s.formy);
   const fb = s.formy.filter((f) => FBUY.includes(f)).sort(byAbs);
   const fh = s.formy.filter((f) => !FBUY.includes(f)).sort(byAbs);
-  const item = (f: string) => {
+  // home forms that also exist ready-made (a registered tea, an ointment) are listed under "Koupit hotové"
+  const ready = fh.filter((f) => ph.some((x) => x.form == f));
+  const item = (f: string, mode: "buy" | "home" | "ready" = FBUY.includes(f) ? "buy" : "home") => {
     const F = D.forms[f];
     if (!F) return null;
+    const src = mode == "ready" ? READY_SRC : formSources(s.k, f);
     const a = FABS[f] ?? [2, "Vstřebání střední"];
     return (
-      <div key={f} className="fa" id={`f-${f}`}>
+      <div key={mode + f} className="fa" id={mode == "ready" ? `f-${f}-hotove` : `f-${f}`}>
         <span className="hd-fo" style={{ background: FCOLOR[f] || "#F1EFE8" }} aria-hidden="true">
           {FICON[f] || "•"}
         </span>
         <div>
-          <b className="fa-n">{F[0]}</b>
+          <b className="fa-n">{mode == "ready" ? `${READY_NAME[f] ?? F[0]} z lékárny` : F[0]}</b>
           <p>{F[1]}</p>
           <div className="fa-src">
-            {formSources(s.k, f).map((x) => (
+            {src.map((x) => (
               <span key={x.t} className="src-chip">
                 <span aria-hidden="true">{x.ic}</span> {x.t}
               </span>
@@ -524,7 +537,7 @@ export function FormsAbsorb({ s }: { s: Species }) {
           <p className="fa-note">
             {F[2]} <b>Kdy:</b> {F[3]}
           </p>
-          <PharmList items={ph.filter((x) => x.form == f)} />
+          {mode == "home" ? null : <PharmList items={ph.filter((x) => x.form == f)} />}
         </div>
       </div>
     );
@@ -533,16 +546,17 @@ export function FormsAbsorb({ s }: { s: Species }) {
   return (
     <section className="card-l" id="formy">
       <h3 className="cl-h">Možnosti použití a jak se vstřebají</h3>
-      {fb.length ? (
+      {fb.length || ready.length ? (
         <>
           <h4 className="fgrp">🛍️ Koupit hotové</h4>
-          {fb.map(item)}
+          {fb.map((f) => item(f, "buy"))}
+          {ready.map((f) => item(f, "ready"))}
         </>
       ) : null}
       {fh.length ? (
         <>
           <h4 className="fgrp">🏠 Připravit doma</h4>
-          {fh.map(item)}
+          {fh.map((f) => item(f, "home"))}
         </>
       ) : null}
       {other.length ? (

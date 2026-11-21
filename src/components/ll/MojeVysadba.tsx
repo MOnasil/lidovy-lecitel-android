@@ -9,7 +9,7 @@ import {
   type Planting,
 } from "@/lib/ll/garden";
 import { useLocal } from "@/lib/ll/local";
-import { FICON, SpeciesLink } from "./common";
+import { FICON, SpeciesLink, PackedChips } from "./common";
 import { FSHORT } from "./DruhHead";
 import { useApp } from "@/lib/ll/store";
 import { TOP, TP, grade } from "@/lib/ll/data";
@@ -128,6 +128,20 @@ export function formsLabel(k: string): string {
  * "Moje byliny a houby" at the top of Zahrádka: what the user has at home, grows and plans to grow
  * (each group with its own colour), with reminders for planting, care and harvest below.
  */
+/** The plants people most often have at home, offered as one-tap picks. */
+const COMMON_HOME = [
+  "mentha_piperita",
+  "melissa_officinalis",
+  "matricaria_chamomilla",
+  "ocimum_basilicum",
+  "thymus_vulgaris",
+  "salvia_officinalis",
+  "rosmarinus_officinalis",
+  "lavandula_angustifolia",
+  "aloe_vera",
+  "allium_sativum",
+];
+
 export function MojeVysadba({
   v,
   setV,
@@ -247,6 +261,19 @@ export function MojeVysadba({
           📝 Budu pěstovat
         </button>
       </div>
+      {COMMON_HOME.some((k) => SP[k] && !doma.includes(k) && !v[k]) ? (
+        <PackedChips
+          className="chips packed quick-home"
+          items={COMMON_HOME.filter((k) => SP[k] && !doma.includes(k) && !v[k]).map((k) => ({
+            k,
+            el: (
+              <button type="button" className="chip" onClick={() => toggleDoma(k)}>
+                ➕ {SP[k]!.cz.split(" (")[0]}
+              </button>
+            ),
+          }))}
+        />
+      ) : null}
       {pridat && !growable ? (
         <p className="note">
           Tuto bylinu u nás doma nepěstujeme – můžete ji přidat jen do Mám doma.

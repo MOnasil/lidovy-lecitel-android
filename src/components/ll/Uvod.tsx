@@ -95,10 +95,24 @@ export function Uvod() {
         </div>
         {last ? (
           <div className="uvod-btns">
-            <button type="button" className="btn" onClick={() => done("/auth")}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                try {
+                  sessionStorage.setItem("ll-auth-rezim", "signup");
+                } catch {
+                  /* storage blocked */
+                }
+                done("/auth");
+              }}
+            >
+              Registrovat se
+            </button>
+            <button type="button" className="btn ghost" onClick={() => done("/auth")}>
               Přihlásit se
             </button>
-            <button type="button" className="btn ghost" onClick={() => done()}>
+            <button type="button" className="linkish uvod-later" onClick={() => done()}>
               Pokračovat bez přihlášení
             </button>
           </div>

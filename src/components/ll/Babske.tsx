@@ -16,6 +16,7 @@ import { photoUrl } from "@/lib/ll/photos";
 import { useApp } from "@/lib/ll/store";
 import { myRisks, risksByItem, type Risk } from "@/lib/ll/risks";
 import { isKnownPlain } from "@/lib/ll/medsSukl";
+import { potizeOf } from "@/lib/ll/doporuceni";
 import { ZdraviLeky, ownMeds } from "./Profil";
 import { Sec } from "./DruhHead";
 import { AbsList, IxBadge, IxList, IX_T, SpeciesLink, cap1 } from "./common";
@@ -89,12 +90,15 @@ function AbsGeneral() {
           </ul>
         </div>
       ) : null}
-      {sorted.map((g) => (
-        <div key={g.t} className={`use${g.mine ? " mine" : ""}`}>
-          <b>{g.t}</b> {g.mine ? <MineBadge /> : null}
-          <p className="mt-1">{g.d}</p>
-        </div>
-      ))}
+      <FirstFour
+        items={sorted}
+        render={(g) => (
+          <div key={g.t} className={`use${g.mine ? " mine" : ""}`}>
+            <b>{g.t}</b> {g.mine ? <MineBadge /> : null}
+            <p className="mt-1">{g.d}</p>
+          </div>
+        )}
+      />
     </section>
   );
 }
@@ -255,6 +259,24 @@ const DETOXG_ORDER = [
   "Nejvíc pomůže nepřijímat",
 ];
 
+/** First four items, the rest behind "Zobrazit další". */
+function FirstFour<T>({ items, render }: { items: T[]; render: (t: T) => React.ReactNode }) {
+  const [all, setAll] = useState(false);
+  const shown = all ? items : items.slice(0, 4);
+  return (
+    <>
+      {shown.map(render)}
+      {items.length > shown.length ? (
+        <div className="more-row">
+          <button type="button" className="chip sm" onClick={() => setAll(true)}>
+            Zobrazit další ({items.length - shown.length})
+          </button>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 function Detox() {
   const { prof } = useApp();
   if (!D.detox.length && !D.detoxg.length) return null;
@@ -278,12 +300,15 @@ function Detox() {
         Co naznačují studie o vylučování škodlivin z těla – a co naopak nefunguje nebo škodí.
       </p>
       <ProfHint />
-      {general.map((g) => (
-        <div key={g[0]} className={`use${mineOf(g[0]) ? " mine" : ""}`}>
-          <b>{g[0]}</b> {mineOf(g[0]) ? <MineBadge /> : null}
-          <p className="mt-1">{g[1]}</p>
-        </div>
-      ))}
+      <FirstFour
+        items={general}
+        render={(g) => (
+          <div key={g[0]} className={`use${mineOf(g[0]) ? " mine" : ""}`}>
+            <b>{g[0]}</b> {mineOf(g[0]) ? <MineBadge /> : null}
+            <p className="mt-1">{g[1]}</p>
+          </div>
+        )}
+      />
       <h3 className="mt-4">Jednotlivé studie</h3>
       <p className="note">✓ příznivý výsledek · ≈ smíšený · ✗ bez účinku · ! riziko</p>
       {G.map((g) => (
@@ -475,7 +500,17 @@ function MojeTabulka() {
         drop: () => toggleProf(c.k, false),
       })),
   ];
-  const label = (l: Risk[] | null) => {
+  for (const p of potizeOf(prof))
+    rows.push({
+      id: "p:" + p.id,
+      ic: "😣",
+      typ: "Co mě trápí",
+      n: p.n,
+      list: [],
+      drop: () => toggleProf(p.id, false),
+    });
+  const label = (l: Risk[] | null, typ: string) => {
+    if (typ == "Co mě trápí") return <span className="note">doporučení v Co mě trápí</span>;
     if (l == null) return <span className="note">neznámý lék – zeptejte se lékárníka</span>;
     if (!l.length) return <span className="note">známé střety nemáme</span>;
     const red = l.some((r) => r.sev == "r");
@@ -507,7 +542,7 @@ function MojeTabulka() {
                 <span aria-hidden="true">{r.ic}</span> {r.n}
                 <small>{r.typ}</small>
               </span>
-              {label(r.list)}
+              {label(r.list, r.typ)}
             </button>
             <button
               type="button"
@@ -531,26 +566,20 @@ function MojeTabulka() {
 
 function MojeInterakce() {
   const { prof, meds, medsOther } = useApp();
-  const [add, setAdd] = useState(false);
   const own = ownMeds(medsOther);
   const hasCond = [...FLAGS.map(([k]) => k), ...CONDS.map((c) => c.k)].some(
     (k) => k != "leky" && prof.has(k),
   );
   const risks = useMemo(() => myRisks(prof), [prof]);
   const empty = !meds.length && !hasCond && !own.length;
-  if (empty) return <ZdraviLeky title="Jaké léky užíváte nebo co vás trápí?" compact />;
+  if (empty) return <ZdraviLeky title="Jaké léky užíváte nebo co vás trápí?" />;
   return (
     <>
       <section className="box">
         <h2>Moje léky a zdraví</h2>
         <MojeTabulka />
-        <div className="row-btns mt-add">
-          <button type="button" className="btn" onClick={() => setAdd((v) => !v)}>
-            {add ? "Hotovo" : "➕ Přidat do Mých léků"}
-          </button>
-        </div>
-        {add ? <ZdraviLeky title="" compact /> : null}
       </section>
+      <ZdraviLeky />
       <section className="box ix-box">
         <h2>⚠️ Pozor pro vás</h2>
         {risks.length ? (

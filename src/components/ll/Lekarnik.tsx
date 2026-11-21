@@ -118,13 +118,13 @@ export function Lekarnik() {
                 🏠 <b>Mám doma:</b> {home.join(", ")}
               </p>
             ) : null}
-            <Link to="/profil" className="note">
-              Upravit v profilu
+            <Link to="/interakce" className="note">
+              Upravit v Moje léky ›
             </Link>
           </>
         ) : (
           <p className="note">
-            <Link to="/profil">Vyplňte léky a potíže v profilu</Link> – lékárník vám odpoví
+            <Link to="/interakce">Vyplňte léky a nemoci v Moje léky</Link> – lékárník vám odpoví
             přesněji.
           </p>
         )}

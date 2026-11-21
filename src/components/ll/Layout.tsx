@@ -191,6 +191,8 @@ export function Layout({ children }: { children: ReactNode }) {
   const nav = useNavigate();
   const path = useRouterState({ select: (r) => r.location.pathname });
   const touch = useRef<{ x: number; y: number; t: number } | null>(null);
+  // direction of the last swipe, so the next page slides in from that side
+  const [slide, setSlide] = useState<"" | "l" | "r">("");
 
   // Swipe sideways between the tabs; on a detail page or the profile a swipe right goes back.
   const tabIndex = NAV.findIndex((n) => ("exact" in n && n.exact ? path == n.to : path == n.to));
@@ -212,7 +214,10 @@ export function Layout({ children }: { children: ReactNode }) {
     if (Math.abs(dx) < 80 || Math.abs(dy) > Math.abs(dx) * 0.5 || Date.now() - st.t > 700) return;
     if (tabIndex >= 0) {
       const next = NAV[tabIndex + (dx < 0 ? 1 : -1)];
-      if (next) void nav({ to: next.to });
+      if (next) {
+        setSlide(dx < 0 ? "l" : "r");
+        void nav({ to: next.to });
+      }
     } else if (dx > 0 && typeof window != "undefined" && window.history.length > 1) {
       window.history.back();
     }
@@ -298,7 +303,11 @@ export function Layout({ children }: { children: ReactNode }) {
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
-        <main className="site-main" key={path}>
+        <main
+          className={`site-main${slide ? " slide-" + slide : ""}`}
+          key={path}
+          onAnimationEnd={() => setSlide("")}
+        >
           {children}
         </main>
         <p className="note mt-[22px]">

@@ -16,6 +16,17 @@ export function Prihlaseni() {
   const { account } = useApp();
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>("login");
+  // "Registrovat se" in the first-run intro opens the sign-up tab
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem("ll-auth-rezim") == "signup") {
+        sessionStorage.removeItem("ll-auth-rezim");
+        setMode("signup");
+      }
+    } catch {
+      /* storage blocked */
+    }
+  }, []);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
