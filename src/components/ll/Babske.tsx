@@ -1,10 +1,8 @@
-import { Fragment, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { CONDS, D, FLAGS, SP, norm } from "@/lib/ll/data";
-import { MED } from "@/lib/ll/meds";
+import { D, SP, norm } from "@/lib/ll/data";
 import { ABSORB, ABSV_CLS } from "@/lib/ll/absorb";
 import {
-  GUIDE,
   GUIDE_REST,
   RULE_T,
   groupSev,
@@ -14,10 +12,7 @@ import {
 } from "@/lib/ll/ixguide";
 import { photoUrl } from "@/lib/ll/photos";
 import { useApp } from "@/lib/ll/store";
-import { myRisks, risksByItem, type Risk } from "@/lib/ll/risks";
-import { isKnownPlain } from "@/lib/ll/medsSukl";
-import { potizeOf } from "@/lib/ll/doporuceni";
-import { ZdraviLeky, ownMeds } from "./Profil";
+import { MojeLeky } from "./MojeLeky";
 import { Sec } from "./DruhHead";
 import { AbsList, IxBadge, IxList, IX_T, SpeciesLink, cap1 } from "./common";
 
@@ -149,11 +144,7 @@ function Interakce() {
         const food = g.k == "jidlo" ? D.food : [];
         const sev = mine ? groupSev(g) : null;
         return (
-          <details
-            key={g.k}
-            className={`dtx ixg${mine ? " mine" : ""}${sev ? " sev-" + sev : ""}`}
-            open={mine || undefined}
-          >
+          <details key={g.k} className={`dtx ixg${mine ? " mine" : ""}${sev ? " sev-" + sev : ""}`}>
             <summary>
               <span aria-hidden="true">{g.icon}</span> <b>{g.title}</b>{" "}
               {mine ? (
@@ -407,232 +398,11 @@ export function AtlasExtras() {
 }
 
 /** Top of "Interakce": the user's medicines and conditions, each with what not to combine. */
-/** Herb/mushroom tiles, four in a row: photo, name, severity and why. */
-export function RiskTiles({ list, first = 8 }: { list: Risk[]; first?: number }) {
-  const [all, setAll] = useState(false);
-  const [why, setWhy] = useState<string | null>(null);
-  const shown = all ? list : list.slice(0, first);
-  const open = why ? list.find((r) => r.k == why) : null;
-  return (
-    <>
-      <div className="rtiles">
-        {shown.map((r) => (
-          <div key={r.k} className={`rtile sev-${r.sev}`}>
-            <SpeciesLink k={r.k} className="rtile-l">
-              {photoUrl(r.k, "t") ? (
-                <img src={photoUrl(r.k, "t")!} alt="" loading="lazy" />
-              ) : (
-                <span className="rtile-ph" aria-hidden="true">
-                  🌿
-                </span>
-              )}
-              <b>{SP[r.k]!.cz.split(" (")[0]}</b>
-            </SpeciesLink>
-            <button
-              type="button"
-              className={`rtile-b sev-${r.sev}`}
-              aria-expanded={why == r.k}
-              onClick={() => setWhy(why == r.k ? null : r.k)}
-            >
-              {r.sev == "r" ? "nekombinovat" : "opatrně"} ⓘ
-            </button>
-          </div>
-        ))}
-      </div>
-      {open ? (
-        <p className={`ix-explain rt-why sev-${open.sev}`}>
-          <b>{SP[open.k]!.cz.split(" (")[0]}</b>
-          {open.why ? ` (${open.why})` : ""}: {open.t}
-        </p>
-      ) : null}
-      {list.length > shown.length ? (
-        <div className="more-row">
-          <button type="button" className="chip sm" onClick={() => setAll(true)}>
-            Zobrazit další ({list.length - shown.length})
-          </button>
-        </div>
-      ) : null}
-    </>
-  );
-}
-
-/** Table of the user's medicines and illnesses; each row opens the herbs it clashes with. */
-function MojeTabulka() {
-  const { prof, toggleProf, meds, setMeds, medsOther, saveMedsOther } = useApp();
-  const [open, setOpen] = useState<string | null>(null);
-  const by = useMemo(() => risksByItem(prof), [prof]);
-  const own = ownMeds(medsOther);
-  type Row = {
-    id: string;
-    ic: string;
-    typ: string;
-    n: string;
-    list: Risk[] | null;
-    drop: () => void;
-  };
-  const rows: Row[] = [
-    ...meds
-      .filter((k) => MED[k])
-      .map((k) => ({
-        id: "m:" + k,
-        ic: "💊",
-        typ: "Lék",
-        n: MED[k]!.n,
-        list: by.get("med:" + MED[k]!.n) ?? [],
-        drop: () => setMeds(meds.filter((m) => m != k)),
-      })),
-    ...own.map((t) => ({
-      id: "o:" + t,
-      ic: "💊",
-      typ: "Lék",
-      n: t,
-      list: isKnownPlain(t) ? [] : null,
-      drop: () => saveMedsOther(own.filter((x) => x != t).join("\n")),
-    })),
-    ...[...FLAGS.map(([k, n]) => ({ k, n })), ...CONDS.map((c) => ({ k: c.k, n: c.n }))]
-      .filter((c) => c.k != "leky" && prof.has(c.k))
-      .map((c) => ({
-        id: "c:" + c.k,
-        ic: "🩺",
-        typ: "Nemoc",
-        n: c.n.split(" (")[0]!,
-        list: by.get(c.k) ?? [],
-        drop: () => toggleProf(c.k, false),
-      })),
-  ];
-  for (const p of potizeOf(prof))
-    rows.push({
-      id: "p:" + p.id,
-      ic: "😣",
-      typ: "Co mě trápí",
-      n: p.n,
-      list: [],
-      drop: () => toggleProf(p.id, false),
-    });
-  const label = (l: Risk[] | null, typ: string) => {
-    if (typ == "Co mě trápí") return <span className="note">doporučení v Co mě trápí</span>;
-    if (l == null) return <span className="note">neznámý lék – zeptejte se lékárníka</span>;
-    if (!l.length) return <span className="note">známé střety nemáme</span>;
-    const red = l.some((r) => r.sev == "r");
-    const n = l.length;
-    return (
-      <span className={`mt-cnt sev-${red ? "r" : "y"}`}>
-        {red ? "🔴" : "🟡"} {n} {n == 1 ? "bylina" : n < 5 ? "byliny" : "bylin"} ▾
-      </span>
-    );
-  };
-  return (
-    <div className="mtab" role="table" aria-label="Moje léky a nemoci">
-      <div className="mt-row mt-head" role="row">
-        <span role="columnheader">Lék / nemoc</span>
-        <span role="columnheader">Střety s bylinami</span>
-        <span />
-      </div>
-      {rows.map((r) => (
-        <Fragment key={r.id}>
-          <div className={`mt-row${open == r.id ? " on" : ""}`} role="row">
-            <button
-              type="button"
-              className="mt-main"
-              aria-expanded={open == r.id}
-              disabled={!r.list?.length}
-              onClick={() => setOpen(open == r.id ? null : r.id)}
-            >
-              <span className="mt-n">
-                <span aria-hidden="true">{r.ic}</span> {r.n}
-                <small>{r.typ}</small>
-              </span>
-              {label(r.list, r.typ)}
-            </button>
-            <button
-              type="button"
-              className="x-btn"
-              aria-label={`Odebrat ${r.n}`}
-              onClick={() => (r.drop(), open == r.id && setOpen(null))}
-            >
-              ✕
-            </button>
-          </div>
-          {open == r.id && r.list?.length ? (
-            <div className="mt-tiles">
-              <RiskTiles list={r.list} />
-            </div>
-          ) : null}
-        </Fragment>
-      ))}
-    </div>
-  );
-}
-
-function MojeInterakce() {
-  const { prof, meds, medsOther } = useApp();
-  const own = ownMeds(medsOther);
-  const hasCond = [...FLAGS.map(([k]) => k), ...CONDS.map((c) => c.k)].some(
-    (k) => k != "leky" && prof.has(k),
-  );
-  const risks = useMemo(() => myRisks(prof), [prof]);
-  const empty = !meds.length && !hasCond && !own.length;
-  if (empty) return <ZdraviLeky title="Jaké léky užíváte nebo co vás trápí?" />;
-  return (
-    <>
-      <section className="box">
-        <h2>Moje léky a zdraví</h2>
-        <MojeTabulka />
-      </section>
-      <ZdraviLeky />
-      <section className="box ix-box">
-        <h2>⚠️ Pozor pro vás</h2>
-        {risks.length ? (
-          <>
-            <p className="note">
-              Byliny a houby, které se podle studií a příbalových informací nesnesou s vašimi léky
-              nebo nemocemi. Klepněte na štítek pro vysvětlení.
-            </p>
-            <RiskTiles list={risks} />
-          </>
-        ) : (
-          <p className="note">Podle vašeho profilu jsme nenašli žádný střet s bylinami.</p>
-        )}
-      </section>
-      {meds.map((mk) => {
-        const med = MED[mk];
-        if (!med) return null;
-        const rules = GUIDE.filter(
-          (g) => g.rel.includes(med.k) || g.rel.some((r) => MED[r]?.k == med.k),
-        )
-          .flatMap((g) => g.rules)
-          .filter((r) => !r.sp?.length);
-        if (!rules.length) return null;
-        return (
-          <section key={med.k} className="box">
-            <h3>💊 {med.n}: jídlo, pití a doplňky</h3>
-            <ul className="ix-list">
-              {rules.map((r) => (
-                <li key={r.co}>
-                  <IxBadge label={RULE_T[r.t][0]} cls={RULE_T[r.t][1]} />
-                  <b className="ix-p">{r.co}</b>
-                  <div>{r.proc}</div>
-                </li>
-              ))}
-            </ul>
-          </section>
-        );
-      })}
-      {own.filter((t) => !isKnownPlain(t)).length ? (
-        <p className="note box-note">
-          💊 {own.filter((t) => !isKnownPlain(t)).join(", ")}: tyto léky aplikace nezná, střety s
-          bylinami u nich nehlídáme. Zeptejte se lékárníka.
-        </p>
-      ) : null}
-    </>
-  );
-}
-
 /** "Interakce" tab: the user's own overview, then what not to combine, absorption, detox. */
 export function InterakcePage() {
   return (
     <>
-      <MojeInterakce />
+      <MojeLeky />
       <Interakce />
       <Detox />
       <AbsGeneral />

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NM, SP, TOP, TP, U, warns } from "@/lib/ll/data";
+import { D, NM, SP, TOP, TP, U, norm, warns } from "@/lib/ll/data";
 import { understand } from "@/lib/ll/understand";
 import {
   GSIZE,
@@ -13,7 +13,7 @@ import {
 } from "@/lib/ll/garden";
 import { useLocal } from "@/lib/ll/local";
 import { useApp } from "@/lib/ll/store";
-import { FormChips, SpeciesLink, Who } from "./common";
+import { FormChips, SpeciesLink, Who, XField } from "./common";
 import { MojeVysadba, PlantButtons, useVysadba } from "./MojeVysadba";
 import { MonthBar, MonthLegend, TICON } from "./DruhHead";
 
@@ -75,6 +75,70 @@ function useGardenTopics(): [string[], (next: string[]) => void] {
   return [gt, set];
 }
 
+/** Type a herb's name to put it into the plan (only herbs that can be grown here are offered). */
+function BylinaDoPlanu({ onPick }: { onPick: (k: string) => void }) {
+  const { doma, toggleDoma } = useApp();
+  const [q, setQ] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const nq = norm(q.trim());
+  const hits =
+    nq.length >= 2
+      ? D.species
+          .filter(
+            (s) =>
+              s.k != "houby" &&
+              norm(s.cz + " " + s.lat + " " + (s.ln ?? []).join(" ")).includes(nq),
+          )
+          .slice(0, 6)
+      : [];
+  return (
+    <div>
+      <div className="ask compact">
+        <XField value={q} onClear={() => (setQ(""), setMsg(null))}>
+          <input
+            value={q}
+            onChange={(e) => (setQ(e.target.value), setMsg(null))}
+            placeholder="Např. meduňka, tymián, levandule"
+            aria-label="Přidat bylinu do plánu"
+          />
+        </XField>
+      </div>
+      {hits.length ? (
+        <div className="zl-hits">
+          {hits.map((s) =>
+            D.garden[s.k] ? (
+              <button
+                key={s.k}
+                type="button"
+                className="zl-hit"
+                onClick={() => {
+                  onPick(s.k);
+                  setQ("");
+                  setMsg(`${s.cz.split(" (")[0]} je v plánu.`);
+                }}
+              >
+                🌱 {s.cz} <span className="zl-add">➕ do plánu</span>
+              </button>
+            ) : (
+              <div key={s.k} className="zl-hit zl-own">
+                {s.cz}: u nás se doma pěstovat nedá.{" "}
+                {doma.includes(s.k) ? (
+                  "✓ Je v Mám doma."
+                ) : (
+                  <button type="button" className="linkish" onClick={() => toggleDoma(s.k)}>
+                    Přidat do Mám doma
+                  </button>
+                )}
+              </div>
+            ),
+          )}
+        </div>
+      ) : null}
+      {msg ? <p className="note">✓ {msg}</p> : null}
+    </div>
+  );
+}
+
 export function Zahradka() {
   const { ui, setUI, prof } = useApp();
   const [gtList, setGt] = useGardenTopics();
@@ -110,12 +174,14 @@ export function Zahradka() {
           search();
         }}
       >
-        <input
-          value={q}
-          onChange={(e) => (setQ(e.target.value), setMiss(false))}
-          placeholder="Napište vlastními slovy, např. špatně spím"
-          aria-label="Co vás trápí"
-        />
+        <XField value={q} onClear={() => (setQ(""), setMiss(false))}>
+          <input
+            value={q}
+            onChange={(e) => (setQ(e.target.value), setMiss(false))}
+            placeholder="Napište vlastními slovy, např. špatně spím"
+            aria-label="Co vás trápí"
+          />
+        </XField>
         <button type="submit" className="btn">
           Hledat
         </button>
@@ -139,6 +205,15 @@ export function Zahradka() {
           {allT ? "Skrýt ostatní" : "Další potíže…"}
         </Chip>
       </div>
+      <h4 className="fgrp">… nebo napište konkrétní bylinu</h4>
+      <BylinaDoPlanu
+        onPick={(k) =>
+          setEdits((e) => ({
+            skip: e.skip.filter((x) => x != k),
+            force: [...new Set([k, ...e.force])],
+          }))
+        }
+      />
       <h4 className="fgrp">2. Kde budete pěstovat</h4>
       <div className="chips">
         {MODES.map((x) => (
@@ -170,7 +245,7 @@ export function Zahradka() {
     </section>
   );
 
-  if (!gtList.length)
+  if (!gtList.length && !edits.force.length)
     return (
       <>
         {moje}

@@ -75,8 +75,11 @@ export function gardenPlan(input: GardenInput, prof: ReadonlySet<string>, edits?
   const out: GardenPick[] = [];
   let used = 0;
   const skip = new Set(edits?.skip ?? []);
+  // herbs chosen by name are planned even when they are not among the picks for the complaints
   const forced = (edits?.force ?? [])
-    .map((k) => c.find((x) => x.k == k))
+    .map(
+      (k) => c.find((x) => x.k == k) ?? (G[k] && SP[k] ? { k, g: G[k]!, fit: [], pts: 0 } : null),
+    )
     .filter((x): x is GardenPick => !!x);
   const order = [...forced, ...c.filter((x) => !forced.includes(x))].filter((x) => !skip.has(x.k));
   for (const x of order) {

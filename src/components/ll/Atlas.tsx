@@ -5,7 +5,7 @@ import { photo } from "@/lib/ll/photos";
 import { useApp } from "@/lib/ll/store";
 import { riskOf } from "@/lib/ll/risks";
 import { AtlasExtras } from "./Babske";
-import { MineButtons, SpeciesLink } from "./common";
+import { MineButtons, SpeciesLink, XField } from "./common";
 
 /** How many herbs/mushrooms the Atlas shows before "Rozbalit vše". */
 export const ATLAS_FIRST = 8;
@@ -57,12 +57,14 @@ export function Atlas() {
       <section className="box">
         <h2>Atlas bylin a hub</h2>
         <div className="ask">
-          <input
-            value={ui.as}
-            onChange={(e) => setUI({ as: e.target.value })}
-            placeholder="Hledat podle názvu"
-            aria-label="Hledat v atlasu"
-          />
+          <XField value={ui.as} onClear={() => setUI({ as: "" })}>
+            <input
+              value={ui.as}
+              onChange={(e) => setUI({ as: e.target.value })}
+              placeholder="Hledat podle názvu"
+              aria-label="Hledat v atlasu"
+            />
+          </XField>
         </div>
         <div className="chips">
           {[["doma", "✓ Mám doma"] as [string, string], ...FILTERS].map((x) => (

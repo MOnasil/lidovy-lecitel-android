@@ -18,6 +18,7 @@ import {
 } from "@/lib/ll/lekarnik";
 import { useLocal } from "@/lib/ll/local";
 import { useApp } from "@/lib/ll/store";
+import { XField } from "./common";
 
 const fmtCas = (d: Date) =>
   d.toLocaleString("cs-CZ", {
@@ -140,16 +141,18 @@ export function Lekarnik() {
           <label htmlFor="lek-q" className="note">
             Vaše otázka
           </label>
-          <textarea
-            id="lek-q"
-            value={q}
-            maxLength={MAX_ZNAKU}
-            placeholder="Např. Můžu pít meduňkový čaj, když beru léky na spaní?"
-            onChange={(e) => {
-              setQ(e.target.value);
-              setPlatba(false);
-            }}
-          />
+          <XField value={q} wide onClear={() => setQ("")}>
+            <textarea
+              id="lek-q"
+              value={q}
+              maxLength={MAX_ZNAKU}
+              placeholder="Např. Můžu pít meduňkový čaj, když beru léky na spaní?"
+              onChange={(e) => {
+                setQ(e.target.value);
+                setPlatba(false);
+              }}
+            />
+          </XField>
           <label className="flex items-start gap-2">
             <input
               type="checkbox"

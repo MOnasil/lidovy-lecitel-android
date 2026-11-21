@@ -204,23 +204,60 @@ export function Layout({ children }: { children: ReactNode }) {
     }
     touch.current = { x: t.clientX, y: t.clientY, t: Date.now() };
   };
-  const onTouchEnd = (e: React.TouchEvent) => {
+  const mainRef = useRef<HTMLElement>(null);
+  const dragging = useRef(false);
+  const setX = (x: number, anim = false) => {
+    const m = mainRef.current;
+    if (!m) return;
+    m.style.transition = anim ? "transform .18s ease-out" : "none";
+    m.style.transform = x ? `translateX(${x}px)` : "";
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
     const st = touch.current;
-    touch.current = null;
-    const t = e.changedTouches[0];
+    const t = e.touches[0];
     if (!st || !t || zoom) return;
     const dx = t.clientX - st.x;
     const dy = t.clientY - st.y;
-    if (Math.abs(dx) < 80 || Math.abs(dy) > Math.abs(dx) * 0.5 || Date.now() - st.t > 700) return;
+    if (!dragging.current) {
+      if (Math.abs(dy) > 14 && Math.abs(dy) > Math.abs(dx)) {
+        touch.current = null; // vertical scroll: leave it alone
+        return;
+      }
+      if (Math.abs(dx) < 12 || Math.abs(dx) < Math.abs(dy) * 1.3) return;
+      dragging.current = true;
+    }
+    // the page follows the finger (a little resistance where there is no next tab)
+    const edge = tabIndex >= 0 && !NAV[tabIndex + (dx < 0 ? 1 : -1)];
+    setX(edge || tabIndex < 0 ? dx * 0.25 : dx * 0.6);
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const st = touch.current;
+    touch.current = null;
+    const wasDrag = dragging.current;
+    dragging.current = false;
+    const t = e.changedTouches[0];
+    if (!st || !t || zoom) {
+      if (wasDrag) setX(0, true);
+      return;
+    }
+    const dx = t.clientX - st.x;
+    const dy = t.clientY - st.y;
+    const dt = Math.max(1, Date.now() - st.t);
+    const fast = Math.abs(dx) > 30 && Math.abs(dx) / dt > 0.45;
+    const ok = (Math.abs(dx) >= 50 || fast) && Math.abs(dy) < Math.abs(dx) * 0.7;
+    if (!ok) {
+      if (wasDrag) setX(0, true);
+      return;
+    }
     if (tabIndex >= 0) {
       const next = NAV[tabIndex + (dx < 0 ? 1 : -1)];
       if (next) {
         setSlide(dx < 0 ? "l" : "r");
         void nav({ to: next.to });
-      }
+      } else setX(0, true);
     } else if (dx > 0 && typeof window != "undefined" && window.history.length > 1) {
       window.history.back();
-    }
+    } else setX(0, true);
   };
 
   // keep the active tab visible in the scrolling menu
@@ -301,9 +338,16 @@ export function Layout({ children }: { children: ReactNode }) {
         className="wrap"
         onClickCapture={onClickCapture}
         onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
+        onTouchCancel={() => {
+          touch.current = null;
+          if (dragging.current) setX(0, true);
+          dragging.current = false;
+        }}
       >
         <main
+          ref={mainRef}
           className={`site-main${slide ? " slide-" + slide : ""}`}
           key={path}
           onAnimationEnd={() => setSlide("")}

@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
-import { CONDS, D, FLAGS, NM, SP, TP, fmt, norm } from "@/lib/ll/data";
+import { CONDS, D, FLAGS, SP, fmt, norm } from "@/lib/ll/data";
 import { myRisks } from "@/lib/ll/risks";
 import { showIntroAgain } from "./Uvod";
 import {
@@ -14,11 +14,9 @@ import {
 } from "@/lib/ll/avatars";
 import { potizeOf, recommendFor } from "@/lib/ll/doporuceni";
 import { MED } from "@/lib/ll/meds";
-import { isKnownPlain, searchMedsAll, searchSuklPlain } from "@/lib/ll/medsSukl";
 import { isApp } from "@/lib/ll/platform";
 import { nameTerm } from "@/lib/ll/display";
 import { useApp } from "@/lib/ll/store";
-import { understand } from "@/lib/ll/understand";
 import { Pill, SpeciesLink } from "./common";
 import { formsLabel } from "./MojeVysadba";
 import { photo } from "@/lib/ll/photos";
@@ -207,186 +205,28 @@ export function nameOnly(q: string): { herb: string; name: string; latky: string
   return out.slice(0, 5);
 }
 
-/** The six medicines people take most often, offered as one-tap picks. */
-const QUICK_MEDS = ["paracetamol", "nsaid", "antikoncepce", "tlak", "statiny", "stitna"];
-const QUICK_LABEL: Record<string, string> = {
-  paracetamol: "Paralen (paracetamol)",
-  nsaid: "Ibalgin / Nurofen (ibuprofen)",
-  antikoncepce: "Hormonální antikoncepce",
-  tlak: "Léky na tlak",
-  statiny: "Léky na cholesterol (statiny)",
-  stitna: "Euthyrox (štítná žláza)",
-};
-
-const cap = (n: string) => (n ? n[0]!.toUpperCase() + n.slice(1).toLowerCase() : n);
-
 /** One search for illnesses, complaints, allergies and medicines; chosen items as removable chips. */
-/** The one place to enter medicines, illnesses and complaints (used on "Moje léky"). */
-export function ZdraviLeky({ title = "Přidat lék nebo nemoc" }: { title?: string }) {
-  const { prof, toggleProf, meds, setMeds, medsOther, saveMedsOther } = useApp();
-  const [q, setQRaw] = useState("");
-  const inp = useRef<HTMLInputElement>(null);
-  // after picking a result the field empties but stays ready for the next medicine
-  const setQ = (v: string) => {
-    setQRaw(v);
-    if (!v) setTimeout(() => inp.current?.focus(), 0);
-  };
-  const nq = norm(q.trim());
-  const cond = [
-    ...FLAGS.map(([k, n]) => ({ k, n })),
-    ...CONDS.map((c) => ({ k: c.k, n: c.n, kw: c.kw })),
-  ];
-  const condHits = nq
-    ? cond.filter((c) => norm(c.n + " " + ("kw" in c ? c.kw : "")).includes(nq)).slice(0, 6)
-    : [];
-  const u = nq.length >= 3 ? understand(q) : { n: [], t: [] };
-  const potHits = [
-    ...u.n.filter((k) => NM[k]).map((k) => ({ id: "n:" + k, n: NM[k]!.n })),
-    ...u.t.filter((k) => TP[k]).map((k) => ({ id: "t:" + k, n: TP[k]!.n })),
-  ].slice(0, 5);
-  const medHits = nq && nq.length >= 2 ? searchMedsAll(q).slice(0, 10) : [];
-  const plain = searchSuklPlain(q);
-  const fake = nameOnly(q);
-  const own = ownMeds(medsOther);
-  const toggleMed = (k: string) =>
-    setMeds(meds.includes(k) ? meds.filter((m) => m != k) : [...meds, k]);
-  const addOwn = (t: string) => {
-    const v = t.trim().slice(0, 60);
-    if (v && !own.some((x) => norm(x) == norm(v))) saveMedsOther([...own, v].join("\n"));
-    setQ("");
-  };
-  const exact = medHits.length + plain.length > 0 && plain.some((p) => norm(p) == nq);
-  return (
-    <section className="box">
-      {title ? <h2>{title}</h2> : null}
-      <div className="ask">
-        <input
-          ref={inp}
-          value={q}
-          onChange={(e) => setQRaw(e.target.value)}
-          placeholder="Nemoc, potíž, alergie nebo lék, např. astma, nespavost, Paralen"
-          aria-label="Hledat nemoc, potíž, alergii nebo lék"
-        />
-      </div>
-      {nq ? (
-        <div className="zl-hits">
-          {condHits.map((c) => (
-            <button
-              key={c.k}
-              type="button"
-              className="zl-hit"
-              aria-pressed={prof.has(c.k)}
-              onClick={() => (toggleProf(c.k, !prof.has(c.k)), setQ(""))}
-            >
-              🩺 {c.n} <span className="zl-add">{prof.has(c.k) ? "✓ v profilu" : "➕ přidat"}</span>
-            </button>
-          ))}
-          {potHits.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              className="zl-hit"
-              aria-pressed={prof.has(p.id)}
-              onClick={() => (toggleProf(p.id, !prof.has(p.id)), setQ(""))}
-            >
-              😣 {p.n}{" "}
-              <span className="zl-add">{prof.has(p.id) ? "✓ trápí mě" : "➕ co mě trápí"}</span>
-            </button>
-          ))}
-          {medHits.map(({ m, via }) => (
-            <button
-              key={m.k}
-              type="button"
-              className="zl-hit"
-              aria-pressed={meds.includes(m.k)}
-              onClick={() => (toggleMed(m.k), setQ(""))}
-            >
-              💊 {m.n}
-              {via.length ? <span className="note"> – {via.slice(0, 3).join(", ")}</span> : null}
-              <span className="zl-add">
-                {meds.includes(m.k) ? "✓ moje léky" : "➕ k mým lékům"}
-              </span>
-            </button>
-          ))}
-          {plain.map((n) => (
-            <button
-              key={n}
-              type="button"
-              className="zl-hit"
-              aria-pressed={own.some((x) => norm(x) == norm(n))}
-              onClick={() => addOwn(cap(n))}
-            >
-              💊 {cap(n)} <span className="note"> – známé střety s bylinami nemáme</span>
-              <span className="zl-add">
-                {own.some((x) => norm(x) == norm(n)) ? "✓ moje léky" : "➕ k mým lékům"}
-              </span>
-            </button>
-          ))}
-          {fake.map((f) => (
-            <div key={f.name} className="alert ix-warn">
-              ⚠️ <b>{f.name}</b> má v názvu „{f.herb.toLowerCase()}“, ale podle registrace tuto
-              rostlinu neobsahuje.{" "}
-              {f.latky.length
-                ? `Účinné látky: ${f.latky.join(", ")}.`
-                : "Jde o potravinu pro zvláštní lékařské účely, název označuje jen příchuť."}
-            </div>
-          ))}
-          {q.trim().length >= 3 && !exact && !condHits.length && !potHits.length ? (
-            <button type="button" className="zl-hit zl-own" onClick={() => addOwn(q)}>
-              ➕ Přidat „{q.trim().slice(0, 60)}“ jako vlastní lék
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-      {QUICK_MEDS.some((k) => MED[k] && !meds.includes(k)) ? (
-        <div className="quick-meds">
-          {QUICK_MEDS.filter((k) => MED[k] && !meds.includes(k)).map((k) => (
-            <button key={k} type="button" className="chip" onClick={() => toggleMed(k)}>
-              ➕ {QUICK_LABEL[k] ?? MED[k]!.n}
-            </button>
-          ))}
-        </div>
-      ) : null}
-      {own.some((t) => !isKnownPlain(t)) ? (
-        <p className="note">
-          U vlastních léků (čárkovaný rámeček) střety s bylinami nehlídáme – zeptejte se lékárníka.
-        </p>
-      ) : null}
-      {
-        <>
-          <h4 className="fgrp">Nejčastější stavy</h4>
-          <div>
-            {FLAGS.map((f) => (
-              <label key={f[0]} className="check" htmlFor={`p-${f[0]}`}>
-                <input
-                  type="checkbox"
-                  id={`p-${f[0]}`}
-                  checked={prof.has(f[0])}
-                  onChange={(e) => toggleProf(f[0], e.target.checked)}
-                />
-                <span>{f[1]}</span>
-              </label>
-            ))}
-          </div>
-        </>
-      }
-    </section>
-  );
-}
-
 /** Read-only overview of the profile; editing lives in "Moje léky" and "Moje zahrádka". */
 function ProfilPrehled() {
   const { prof, meds, medsOther, doma } = useApp();
-  const medN = [
-    ...meds.map((k) => MED[k]?.n).filter((x): x is string => !!x),
+  const herb = (k: string) => SP[k]!.cz.split(" (")[0]!;
+  const uz = [
+    ...meds.map((k) => MED[k]?.n.split(" (")[0]).filter((x): x is string => !!x),
     ...ownMeds(medsOther),
+    ...[...prof].filter((f) => f.startsWith("uz:") && SP[f.slice(3)]).map((f) => herb(f.slice(3))),
   ];
   const conds = [...FLAGS.map(([k, n]) => ({ k, n })), ...CONDS.map((c) => ({ k: c.k, n: c.n }))]
     .filter((c) => c.k != "leky" && prof.has(c.k))
     .map((c) => (c.n.length > 48 ? c.n.slice(0, 46) + "…" : c.n));
   const pot = potizeOf(prof).map((p) => p.n);
-  const home = doma.filter((k) => SP[k]);
-  const row = (h: string, items: string[], to: "/interakce" | "/zahradka", where: string) => (
+  const home = [
+    ...[...prof]
+      .filter((f) => f.startsWith("dm:") && MED[f.slice(3)])
+      .map((f) => MED[f.slice(3)]!.n.split(" (")[0]!),
+    ...[...prof].filter((f) => f.startsWith("dmo:")).map((f) => f.slice(4)),
+    ...doma.filter((k) => SP[k]).map(herb),
+  ];
+  const row = (h: string, items: string[], to: "/interakce" | "/", where: string) => (
     <p>
       <span className="pchips-h">{h}</span>
       {items.length ? (
@@ -405,21 +245,15 @@ function ProfilPrehled() {
   );
   return (
     <section className="box">
-      <h2>Moje léky a zdraví</h2>
+      <h2>Moje léky a byliny</h2>
       <p className="note">
-        Podle profilu označíme byliny, které pro vás nejsou vhodné, a doporučíme byliny na vaše
-        potíže. Léky a nemoci vyplníte v Moje léky, rostliny v Moje zahrádka.
+        Podle toho označíme byliny, které pro vás nejsou vhodné, a doporučíme byliny na vaše potíže.
       </p>
       <div className="pchips">
-        {row("💊 Léky", medN, "/interakce", "Moje léky")}
+        {row("💊 Pravidelně používám", uz, "/interakce", "Moje léky")}
         {row("🩺 Nemoci a stavy", conds, "/interakce", "Moje léky")}
-        {row("😣 Co mě trápí", pot, "/interakce", "Moje léky")}
-        {row(
-          "🏠 Mám doma",
-          home.map((k) => SP[k]!.cz.split(" (")[0]!),
-          "/zahradka",
-          "Moje zahrádka",
-        )}
+        {row("🏠 Mám doma", home, "/interakce", "Moje léky")}
+        {row("😣 Co mě trápí", pot, "/", "Co mě trápí")}
       </div>
     </section>
   );

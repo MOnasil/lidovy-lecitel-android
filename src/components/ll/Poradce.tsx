@@ -39,6 +39,7 @@ import {
   SpeciesLink,
   WarnAlert,
   Who,
+  XField,
 } from "./common";
 import { setPendingAnchor } from "@/lib/ll/jump";
 import { FormIcons } from "./DruhHead";
@@ -524,19 +525,21 @@ export function Poradce() {
           submit();
         }}
       >
-        <textarea
-          rows={sel ? 1 : 2}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key == "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              submit();
-            }
-          }}
-          placeholder="Např. mám atopický ekzém a špatně spím, nebo: bolí mě v krku a kašlu"
-          aria-label="Popište, co vás trápí"
-        />
+        <XField value={draft} wide onClear={() => setDraft("")}>
+          <textarea
+            rows={sel ? 1 : 2}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key == "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                submit();
+              }
+            }}
+            placeholder="Např. mám atopický ekzém a špatně spím, nebo: bolí mě v krku a kašlu"
+            aria-label="Popište, co vás trápí"
+          />
+        </XField>
         <button className="btn">Vyhledat</button>
       </form>
       <ProfilStrip />

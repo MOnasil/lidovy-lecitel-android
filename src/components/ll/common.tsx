@@ -638,6 +638,15 @@ export function PackedChips({
     }
     setPacked({ sig, order: out.map((i) => items[i]!.k) });
   }, [order, sig, items]);
+  // the last row keeps its natural width (a lone chip must not stretch across the screen)
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !order) return;
+    const kids = [...el.children] as HTMLElement[];
+    kids.forEach((c) => c.classList.remove("last-row"));
+    const lastTop = Math.max(...kids.map((c) => c.offsetTop));
+    kids.filter((c) => c.offsetTop == lastTop).forEach((c) => c.classList.add("last-row"));
+  }, [order]);
   const byK = new Map(items.map((i) => [i.k, i.el]));
   const ks = order ?? items.map((i) => i.k);
   return (
@@ -647,5 +656,41 @@ export function PackedChips({
       ))}
       {tail}
     </div>
+  );
+}
+
+/** A text field with a ✕ on the right that clears it (shown only when there is text). */
+export function XField({
+  value,
+  onClear,
+  children,
+  wide,
+}: {
+  value: string;
+  onClear: () => void;
+  children: React.ReactElement;
+  wide?: boolean;
+}) {
+  const ref = useRef<HTMLSpanElement>(null);
+  return (
+    <span ref={ref} className={`xfield${wide ? " wide" : ""}`}>
+      {children}
+      {value ? (
+        <button
+          type="button"
+          className="clear-x"
+          aria-label="Smazat text"
+          onClick={() => {
+            onClear();
+            setTimeout(
+              () => ref.current?.querySelector<HTMLElement>("input, textarea")?.focus(),
+              0,
+            );
+          }}
+        >
+          ✕
+        </button>
+      ) : null}
+    </span>
   );
 }
